@@ -24,3 +24,8 @@ install_data(
   'gui/data/io.github.izsakirobi.LinuxScrollFix.metainfo.xml',
   install_dir: join_paths(get_option('datadir'), 'metainfo'),
 )
+
+install_data(
+  'gui/data/icons/hicolor/scalable/apps/io.github.izsakirobi.LinuxScrollFix.svg',
+  install_dir: join_paths(get_option('datadir'), 'icons', 'hicolor', 'scalable', 'apps'),
+)

@@ -2,7 +2,7 @@
 Name=Linux Scroll Fix
 Comment=Configure precise, smooth mouse-wheel scrolling
 Exec=linux-scroll-fix
-Icon=input-mouse-symbolic
+Icon=io.github.izsakirobi.LinuxScrollFix
 Terminal=false
 Type=Application
 Categories=Settings;HardwareSettings;

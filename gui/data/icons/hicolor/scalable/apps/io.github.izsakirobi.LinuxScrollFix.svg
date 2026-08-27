@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <title>Linux Scroll Fix</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f7f7f8"/>
+      <stop offset="1" stop-color="#dedee2"/>
+    </linearGradient>
+    <linearGradient id="mouse" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.58" stop-color="#e8e8eb"/>
+      <stop offset="1" stop-color="#c7c7cc"/>
+    </linearGradient>
+    <linearGradient id="trail" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3584e4" stop-opacity="0.82"/>
+      <stop offset="1" stop-color="#3584e4" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="9"/>
+      <feOffset dy="10"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.22"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="leftTire">
+      <rect x="112" y="309" width="102" height="152" rx="43"/>
+    </clipPath>
+    <clipPath id="rightTire">
+      <rect x="386" y="309" width="102" height="152" rx="43"/>
+    </clipPath>
+  </defs>
+
+  <!-- Soft GNOME-style application tile. -->
+  <rect x="42" y="38" width="516" height="516" rx="112" fill="#a9a9af" opacity="0.42"/>
+  <rect x="42" y="30" width="516" height="516" rx="112" fill="url(#tile)" filter="url(#shadow)"/>
+
+  <!-- Motion trails: rounded, staggered and fading away from the mouse. -->
+  <path d="M300 411 C300 446 300 476 300 510" fill="none" stroke="url(#trail)" stroke-width="18" stroke-linecap="round"/>
+  <path d="M250 425 C246 449 243 470 240 493" fill="none" stroke="url(#trail)" stroke-width="14" stroke-linecap="round"/>
+  <path d="M350 425 C354 449 357 470 360 493" fill="none" stroke="url(#trail)" stroke-width="14" stroke-linecap="round"/>
+  <path d="M202 433 C197 447 193 461 190 476" fill="none" stroke="url(#trail)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M398 433 C403 447 407 461 410 476" fill="none" stroke="url(#trail)" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Rear tires sit behind the mouse body. -->
+  <rect x="112" y="309" width="102" height="152" rx="43" fill="#303038"/>
+  <rect x="386" y="309" width="102" height="152" rx="43" fill="#303038"/>
+  <g fill="#696971" clip-path="url(#leftTire)">
+    <path d="M91 329 L122 304 L150 304 L112 336 Z"/>
+    <path d="M91 370 L130 338 L158 338 L112 377 Z"/>
+    <path d="M91 416 L130 384 L158 384 L112 423 Z"/>
+    <path d="M96 457 L132 427 L160 427 L119 462 Z"/>
+    <path d="M169 304 L214 341 L214 365 L169 329 Z"/>
+    <path d="M169 351 L214 388 L214 412 L169 376 Z"/>
+    <path d="M169 398 L214 435 L214 459 L169 423 Z"/>
+  </g>
+  <g fill="#696971" clip-path="url(#rightTire)">
+    <path d="M365 341 L410 304 L438 304 L386 347 Z"/>
+    <path d="M365 388 L410 351 L438 351 L386 394 Z"/>
+    <path d="M365 435 L410 398 L438 398 L386 441 Z"/>
+    <path d="M442 304 L488 342 L488 366 L442 329 Z"/>
+    <path d="M442 351 L488 389 L488 413 L442 376 Z"/>
+    <path d="M442 398 L488 436 L488 460 L442 423 Z"/>
+  </g>
+  <rect x="128" y="325" width="70" height="120" rx="31" fill="none" stroke="#1f1f25" stroke-width="7"/>
+  <rect x="402" y="325" width="70" height="120" rx="31" fill="none" stroke="#1f1f25" stroke-width="7"/>
+
+  <!-- Mouse body with a rounded, tapered rear instead of a straight cut. -->
+  <path d="M300 88
+           C382 88 438 148 438 230
+           L438 338
+           C438 375 420 399 387 414
+           C360 426 332 438 300 449
+           C268 438 240 426 213 414
+           C180 399 162 375 162 338
+           L162 230
+           C162 148 218 88 300 88 Z"
+        fill="url(#mouse)" stroke="#b8b8be" stroke-width="4"/>
+
+  <!-- Button split and scroll wheel. -->
+  <path d="M300 91 L300 190" fill="none" stroke="#c6c6cb" stroke-width="6"/>
+  <rect x="267" y="143" width="66" height="128" rx="33" fill="#34343e"/>
+  <rect x="278" y="157" width="44" height="60" rx="22" fill="#3584e4"/>
+  <path d="M300 169 L300 202" fill="none" stroke="#8dc0f8" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Small highlights retain definition at launcher sizes. -->
+  <path d="M204 211 C211 156 245 121 291 113" fill="none" stroke="#ffffff" stroke-opacity="0.72" stroke-width="10" stroke-linecap="round"/>
+  <path d="M222 400 C246 411 272 422 300 432 C328 422 354 411 378 400" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="5" stroke-linecap="round"/>
+</svg>
