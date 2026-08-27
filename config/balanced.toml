@@ -1,0 +1,58 @@
+# Balanced keeps the Precise animation and tail, with a wider response range
+# and an earlier acceleration ceiling for everyday scrolling.
+
+target_hz = 120
+smoothing = 0.08
+tail_smoothing = 0.045
+tail_ramp_ms = 200.0
+stop_epsilon = 2.0
+gesture_idle_ms = 1500.0
+gesture_prime_units = 48
+max_pending = 960.0
+device_name_patterns = ["mouse", "receiver", "vmware"]
+
+[vertical]
+enabled = true
+direction = "traditional"
+distance_per_tick = 48.0
+acceleration_max = 2.3
+acceleration_window_ms = 160.0
+acceleration_curve = "mmf_capped"
+analyzer_mode = "rolling_average"
+analyzer_samples = 3
+analyzer_smoothing = 0.35
+curve_exponent = 1.3
+curve_blend = 0.65
+bezier_x1 = 0.18
+bezier_y1 = 0.0
+bezier_x2 = 0.35
+bezier_y2 = 1.0
+mmf_min_sensitivity = 18.0
+mmf_max_sensitivity = 300.0
+mmf_acceleration_start_tps = 5.5
+mmf_acceleration_end_tps = 45.0
+mmf_curvature = 1.1
+mmf_unit_scale = 1.0
+
+[horizontal]
+enabled = true
+direction = "traditional"
+distance_per_tick = 36.0
+acceleration_max = 2.0
+acceleration_window_ms = 160.0
+acceleration_curve = "mmf_capped"
+analyzer_mode = "rolling_average"
+analyzer_samples = 3
+analyzer_smoothing = 0.35
+curve_exponent = 1.3
+curve_blend = 0.65
+bezier_x1 = 0.18
+bezier_y1 = 0.0
+bezier_x2 = 0.35
+bezier_y2 = 1.0
+mmf_min_sensitivity = 18.0
+mmf_max_sensitivity = 300.0
+mmf_acceleration_start_tps = 5.5
+mmf_acceleration_end_tps = 45.0
+mmf_curvature = 1.1
+mmf_unit_scale = 1.0

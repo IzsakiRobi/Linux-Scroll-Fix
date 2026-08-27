@@ -50,6 +50,8 @@ if [[ ! -e /etc/linux-scroll-fix/config.toml ]]; then
     install -Dm0644 "${project_dir}/config/default.toml" /etc/linux-scroll-fix/config.toml
 fi
 install -Dm0644 "${project_dir}/config/default.toml" /usr/local/share/linux-scroll-fix/profiles/precise.toml
+install -Dm0644 "${project_dir}/config/balanced.toml" /usr/local/share/linux-scroll-fix/profiles/balanced.toml
+install -Dm0644 "${project_dir}/config/rapid.toml" /usr/local/share/linux-scroll-fix/profiles/rapid.toml
 install -Dm0644 "${project_dir}/systemd/linux-scroll-fix.service" /etc/systemd/system/linux-scroll-fix.service
 install -Dm0644 \
     "${project_dir}/polkit/io.github.izsakirobi.linux-scroll-fix.policy" \
@@ -59,7 +61,7 @@ if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database /usr/local/share/applications
 fi
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
-    gtk-update-icon-cache --force /usr/local/share/icons/hicolor
+    gtk-update-icon-cache --ignore-theme-index --force /usr/local/share/icons/hicolor
 fi
 systemctl daemon-reload
 systemctl enable linux-scroll-fix.service

@@ -205,3 +205,38 @@ impl Config {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod profile_tests {
+    use super::Config;
+
+    fn parse(source: &str) -> Config {
+        let config: Config = toml::from_str(source).expect("bundled profile must parse");
+        config.validate().expect("bundled profile must validate");
+        config
+    }
+
+    #[test]
+    fn bundled_profiles_share_the_proven_animation() {
+        let precise = parse(include_str!("../../../config/default.toml"));
+        let balanced = parse(include_str!("../../../config/balanced.toml"));
+        let rapid = parse(include_str!("../../../config/rapid.toml"));
+
+        for profile in [&balanced, &rapid] {
+            assert_eq!(profile.target_hz, precise.target_hz);
+            assert_eq!(profile.smoothing, precise.smoothing);
+            assert_eq!(profile.tail_smoothing, precise.tail_smoothing);
+            assert_eq!(profile.tail_ramp_ms, precise.tail_ramp_ms);
+            assert_eq!(profile.stop_epsilon, precise.stop_epsilon);
+            assert_eq!(profile.gesture_prime_units, precise.gesture_prime_units);
+        }
+        assert!(
+            precise.vertical.mmf_min_sensitivity < balanced.vertical.mmf_min_sensitivity
+                && balanced.vertical.mmf_min_sensitivity < rapid.vertical.mmf_min_sensitivity
+        );
+        assert!(
+            precise.vertical.mmf_max_sensitivity < balanced.vertical.mmf_max_sensitivity
+                && balanced.vertical.mmf_max_sensitivity < rapid.vertical.mmf_max_sensitivity
+        );
+    }
+}

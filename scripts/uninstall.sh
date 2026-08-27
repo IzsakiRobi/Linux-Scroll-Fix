@@ -17,6 +17,8 @@ rm -f /usr/local/share/applications/io.github.izsakirobi.LinuxScrollFix.desktop
 rm -f /usr/local/share/metainfo/io.github.izsakirobi.LinuxScrollFix.metainfo.xml
 rm -f /usr/local/share/icons/hicolor/scalable/apps/io.github.izsakirobi.LinuxScrollFix.svg
 rm -f /usr/local/share/linux-scroll-fix/profiles/precise.toml
+rm -f /usr/local/share/linux-scroll-fix/profiles/balanced.toml
+rm -f /usr/local/share/linux-scroll-fix/profiles/rapid.toml
 rmdir /usr/local/share/linux-scroll-fix/profiles 2>/dev/null || true
 rmdir /usr/local/share/linux-scroll-fix 2>/dev/null || true
 rm -f /usr/share/polkit-1/actions/io.github.izsakirobi.linux-scroll-fix.policy
@@ -24,6 +26,6 @@ if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database /usr/local/share/applications
 fi
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
-    gtk-update-icon-cache --force /usr/local/share/icons/hicolor
+    gtk-update-icon-cache --ignore-theme-index --force /usr/local/share/icons/hicolor
 fi
 echo "Linux Scroll Fix removed. Configuration was kept in /etc/linux-scroll-fix."

@@ -38,9 +38,11 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
 
         var profiles = new Gtk.StringList (null);
         profiles.append ("Precise");
+        profiles.append ("Balanced");
+        profiles.append ("Rapid");
         profile_row = new Adw.ComboRow ();
         profile_row.title = "Profile";
-        profile_row.subtitle = "More profiles can be added later";
+        profile_row.subtitle = "Fine control with a gentle top speed";
         profile_row.model = profiles;
         profile_row.selected = 0;
         general_group.add (profile_row);
@@ -58,6 +60,11 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
                 change_service.begin (service_row.active);
             }
         });
+        profile_row.notify["selected"].connect (() => {
+            if (!updating && profile_row.selected != Gtk.INVALID_LIST_POSITION) {
+                change_profile.begin (profile_row.selected);
+            }
+        });
         direction_row.notify["selected"].connect (() => {
             if (!updating) {
                 change_direction.begin (direction_row.selected);
@@ -73,10 +80,29 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
             string output = yield run_command ({ HELPER, "status" });
             bool active = read_state (output, "active") == "true";
             bool enabled = read_state (output, "enabled") == "true";
+            string profile = read_state (output, "profile");
             string direction = read_state (output, "direction");
 
             updating = true;
             service_row.active = active || enabled;
+            switch (profile) {
+                case "precise":
+                    profile_row.selected = 0;
+                    profile_row.subtitle = "Fine control with a gentle top speed";
+                    break;
+                case "balanced":
+                    profile_row.selected = 1;
+                    profile_row.subtitle = "Faster everyday scrolling";
+                    break;
+                case "rapid":
+                    profile_row.selected = 2;
+                    profile_row.subtitle = "Maximum speed for long pages";
+                    break;
+                default:
+                    profile_row.selected = Gtk.INVALID_LIST_POSITION;
+                    profile_row.subtitle = "Custom configuration";
+                    break;
+            }
             direction_row.selected = direction == "natural" ? 1 : 0;
             updating = false;
 
@@ -116,6 +142,32 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
         try {
             yield run_command ({ PKEXEC, HELPER, "set-direction", direction });
             toast_overlay.add_toast (new Adw.Toast ("Scroll direction updated"));
+        } catch (Error error) {
+            show_error (error.message);
+        }
+        yield refresh_state ();
+    }
+
+    private async void change_profile (uint selected) {
+        set_busy (true);
+        string profile;
+        switch (selected) {
+            case 0:
+                profile = "precise";
+                break;
+            case 1:
+                profile = "balanced";
+                break;
+            case 2:
+                profile = "rapid";
+                break;
+            default:
+                yield refresh_state ();
+                return;
+        }
+        try {
+            yield run_command ({ PKEXEC, HELPER, "set-profile", profile });
+            toast_overlay.add_toast (new Adw.Toast ("Profile updated"));
         } catch (Error error) {
             show_error (error.message);
         }

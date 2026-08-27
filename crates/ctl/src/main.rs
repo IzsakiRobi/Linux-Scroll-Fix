@@ -11,6 +11,8 @@ use std::{
 
 const CONFIG_PATH: &str = "/etc/linux-scroll-fix/config.toml";
 const PRECISE_PROFILE_PATH: &str = "/usr/local/share/linux-scroll-fix/profiles/precise.toml";
+const BALANCED_PROFILE_PATH: &str = "/usr/local/share/linux-scroll-fix/profiles/balanced.toml";
+const RAPID_PROFILE_PATH: &str = "/usr/local/share/linux-scroll-fix/profiles/rapid.toml";
 const SERVICE: &str = "linux-scroll-fix.service";
 
 #[derive(Parser)]
@@ -49,9 +51,31 @@ impl From<DirectionArg> for Direction {
     }
 }
 
-#[derive(Clone, Copy, ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 enum ProfileArg {
     Precise,
+    Balanced,
+    Rapid,
+}
+
+impl ProfileArg {
+    const ALL: [Self; 3] = [Self::Precise, Self::Balanced, Self::Rapid];
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Precise => "precise",
+            Self::Balanced => "balanced",
+            Self::Rapid => "rapid",
+        }
+    }
+
+    fn path(self) -> &'static Path {
+        match self {
+            Self::Precise => Path::new(PRECISE_PROFILE_PATH),
+            Self::Balanced => Path::new(BALANCED_PROFILE_PATH),
+            Self::Rapid => Path::new(RAPID_PROFILE_PATH),
+        }
+    }
 }
 
 fn main() -> Result<()> {
@@ -84,7 +108,7 @@ fn print_status() -> Result<()> {
     let config = Config::load(Path::new(CONFIG_PATH))?;
     println!("active={}", service_is("is-active"));
     println!("enabled={}", service_is("is-enabled"));
-    println!("profile=precise");
+    println!("profile={}", detect_profile(&config).unwrap_or("custom"));
     let direction = if config.vertical.direction == config.horizontal.direction {
         match config.vertical.direction {
             Direction::Traditional => "traditional",
@@ -100,13 +124,19 @@ fn print_status() -> Result<()> {
 fn apply_profile(profile: ProfileArg) -> Result<()> {
     let path = Path::new(CONFIG_PATH);
     let current = Config::load(path)?;
-    let profile_path = match profile {
-        ProfileArg::Precise => Path::new(PRECISE_PROFILE_PATH),
-    };
-    let mut replacement = Config::load(profile_path)?;
+    let mut replacement = Config::load(profile.path())?;
     replacement.vertical.direction = current.vertical.direction;
     replacement.horizontal.direction = current.horizontal.direction;
     replace_config_and_restart(path, &replacement)
+}
+
+fn detect_profile(config: &Config) -> Option<&'static str> {
+    ProfileArg::ALL.into_iter().find_map(|profile| {
+        let mut candidate = Config::load(profile.path()).ok()?;
+        candidate.vertical.direction = config.vertical.direction;
+        candidate.horizontal.direction = config.horizontal.direction;
+        (candidate == *config).then(|| profile.name())
+    })
 }
 
 fn replace_config_and_restart(path: &Path, config: &Config) -> Result<()> {
@@ -182,7 +212,7 @@ fn systemctl(arguments: &[&str]) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::temporary_path;
+    use super::{ProfileArg, temporary_path};
     use std::path::Path;
 
     #[test]
@@ -195,5 +225,14 @@ mod tests {
                 .to_string_lossy()
                 .starts_with("config.toml.tmp-")
         );
+    }
+
+    #[test]
+    fn built_in_profile_names_and_paths_are_fixed() {
+        assert_eq!(ProfileArg::Precise.name(), "precise");
+        assert_eq!(ProfileArg::Balanced.name(), "balanced");
+        assert_eq!(ProfileArg::Rapid.name(), "rapid");
+        assert!(ProfileArg::Balanced.path().ends_with("balanced.toml"));
+        assert!(ProfileArg::Rapid.path().ends_with("rapid.toml"));
     }
 }
