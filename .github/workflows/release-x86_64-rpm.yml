@@ -75,4 +75,5 @@ jobs:
           version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
           gh release upload "v${version}" \
             "linux-scroll-fix-${version}-1.x86_64.rpm" \
+            --repo "${GITHUB_REPOSITORY}" \
             --clobber
