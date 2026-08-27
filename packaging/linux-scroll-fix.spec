@@ -28,7 +28,7 @@ direction, and service control.
 
 %build
 cargo build --release --locked
-%meson -Dbuildtype=release --prefix=/usr/local
+%meson --prefix=/usr/local
 %meson_build
 
 %install
@@ -56,12 +56,12 @@ systemctl enable --now linux-scroll-fix.service >/dev/null 2>&1 || :
 %license LICENSE THIRD_PARTY_NOTICES.md
 %doc README.md
 %config(noreplace) /etc/linux-scroll-fix/config.toml
-/usr/local/bin/linux-scroll-fix
+%{_bindir}/linux-scroll-fix
 /usr/local/bin/linux-scroll-fixd
 /usr/local/libexec/linux-scroll-fixctl
-/usr/local/share/applications/io.github.izsakirobi.LinuxScrollFix.desktop
-/usr/local/share/icons/hicolor/scalable/apps/io.github.izsakirobi.LinuxScrollFix.svg
-/usr/local/share/metainfo/io.github.izsakirobi.LinuxScrollFix.metainfo.xml
+%{_datadir}/applications/io.github.izsakirobi.LinuxScrollFix.desktop
+%{_datadir}/icons/hicolor/scalable/apps/io.github.izsakirobi.LinuxScrollFix.svg
+%{_datadir}/metainfo/io.github.izsakirobi.LinuxScrollFix.metainfo.xml
 /usr/local/share/linux-scroll-fix/profiles/precise.toml
 /usr/local/share/linux-scroll-fix/profiles/balanced.toml
 /usr/local/share/linux-scroll-fix/profiles/rapid.toml
