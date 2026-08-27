@@ -363,6 +363,10 @@ fn gesture_prime(delta: i32, prime_units: i32) -> i32 {
     delta.signum() * prime_units
 }
 
+fn ev(kind: EventType, code: u16, value: i32) -> InputEvent {
+    InputEvent::new(kind.0, code, value)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{gesture_prime, gesture_should_end, restart_position};
@@ -401,8 +405,4 @@ mod tests {
         assert_eq!(gesture_prime(-1, 48), -48);
         assert_eq!(gesture_prime(0, 48), 0);
     }
-}
-
-fn ev(kind: EventType, code: u16, value: i32) -> InputEvent {
-    InputEvent::new(kind.0, code, value)
 }
