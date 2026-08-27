@@ -1,0 +1,78 @@
+name: x86_64 Fedora RPM
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/release-x86_64-rpm.yml
+
+permissions:
+  contents: write
+
+jobs:
+  rpm:
+    runs-on: ubuntu-latest
+    container: fedora:44
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: >-
+          dnf install -y
+          cargo
+          gcc
+          gh
+          gtk4-devel
+          libadwaita-devel
+          meson
+          ninja-build
+          polkit
+          rpm-build
+          rust
+          systemd-rpm-macros
+          tar
+          vala
+
+      - name: Build RPM
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          topdir=${RUNNER_TEMP}/rpmbuild
+          mkdir -p "${topdir}"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+          tar \
+            --exclude=.git \
+            --exclude=target \
+            --exclude='build*' \
+            --transform="s,^,linux-scroll-fix-${version}/," \
+            -czf "${topdir}/SOURCES/linux-scroll-fix-${version}.tar.gz" \
+            .
+          cp packaging/linux-scroll-fix.spec "${topdir}/SPECS/"
+          rpmbuild \
+            --define "_topdir ${topdir}" \
+            --define "dist %{nil}" \
+            -bb "${topdir}/SPECS/linux-scroll-fix.spec"
+          rpm_path=$(find "${topdir}/RPMS/x86_64" -maxdepth 1 -name 'linux-scroll-fix-*.x86_64.rpm' ! -name '*debug*' -print -quit)
+          cp "${rpm_path}" "linux-scroll-fix-${version}-1.x86_64.rpm"
+          rpm --checksig --nosignature "linux-scroll-fix-${version}-1.x86_64.rpm"
+
+      - name: Preserve build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-scroll-fix-x86_64-rpm
+          path: linux-scroll-fix-*-1.x86_64.rpm
+
+      - name: Attach RPM to matching release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          gh release upload "v${version}" \
+            "linux-scroll-fix-${version}-1.x86_64.rpm" \
+            --clobber
