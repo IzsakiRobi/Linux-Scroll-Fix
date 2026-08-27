@@ -6,6 +6,14 @@ The included **Precise** profile is Fedora-tested with VMware Fusion and tuned t
 
 ## Install on Fedora
 
+Download the RPM from the latest GitHub release and install it with:
+
+```bash
+sudo dnf install ./linux-scroll-fix-0.5.0-1.*.rpm
+```
+
+Alternatively, build and install directly from the repository:
+
 ```bash
 git clone https://github.com/IzsakiRobi/Linux-Scroll-Fix.git
 cd Linux-Scroll-Fix
@@ -22,6 +30,7 @@ Open **Linux Scroll Fix** from the GNOME application grid. The native libadwaita
 
 - a **Smooth Scrolling** switch that starts/stops the service and controls automatic startup;
 - **Precise**, **Balanced**, and **Rapid** scrolling profiles;
+- a nine-position **Scroll Speed** control spanning slower-than-Precise to faster-than-Rapid behavior;
 - **Traditional** and **Natural** scroll directions.
 
 The application runs as the desktop user. System changes are performed by a narrowly scoped helper after graphical Polkit authentication; the GUI itself never runs as root.
@@ -66,7 +75,7 @@ Press `Ctrl+C` to stop. The program refuses to capture input without `--grab` an
 
 ## Configuration
 
-The active configuration is stored at `/etc/linux-scroll-fix/config.toml`. Built-in profiles live under `/usr/local/share/linux-scroll-fix/profiles`; applying one preserves the selected scroll direction. To reverse an axis manually, set its `direction` to `"natural"`; use `"traditional"` for the default direction.
+The active configuration is stored at `/etc/linux-scroll-fix/config.toml`. Built-in profiles live under `/usr/local/share/linux-scroll-fix/profiles`; applying a profile or custom speed preserves the selected scroll direction. The custom speed control moves the linked sensitivity, acceleration, curvature, and pending-distance limits together so the scrolling model stays internally consistent. To reverse an axis manually, set its `direction` to `"natural"`; use `"traditional"` for the default direction.
 
 ## Uninstall
 

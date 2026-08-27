@@ -92,6 +92,8 @@ pub struct Config {
     pub gesture_idle_ms: f64,
     pub gesture_prime_units: i32,
     pub max_pending: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_speed_level: Option<u8>,
     pub device_name_patterns: Vec<String>,
     pub vertical: AxisConfig,
     pub horizontal: AxisConfig,
@@ -108,6 +110,7 @@ impl Default for Config {
             gesture_idle_ms: 1500.0,
             gesture_prime_units: 48,
             max_pending: 320.0,
+            custom_speed_level: None,
             device_name_patterns: vec!["mouse".into(), "receiver".into(), "vmware".into()],
             vertical: AxisConfig::default(),
             horizontal: AxisConfig {
@@ -156,6 +159,11 @@ impl Config {
         if !(0..=512).contains(&self.gesture_prime_units) {
             return Err(ConfigError::Validation(
                 "gesture_prime_units must be between 0 and 512".into(),
+            ));
+        }
+        if self.custom_speed_level.is_some_and(|level| level > 8) {
+            return Err(ConfigError::Validation(
+                "custom_speed_level must be between 0 and 8".into(),
             ));
         }
         for (name, axis) in [

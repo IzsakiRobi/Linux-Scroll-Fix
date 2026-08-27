@@ -5,9 +5,14 @@ private const string PKEXEC = "/usr/bin/pkexec";
 private class LinuxScrollFixWindow : Adw.ApplicationWindow {
     private Adw.SwitchRow service_row;
     private Adw.ComboRow profile_row;
+    private Adw.ActionRow speed_row;
     private Adw.ComboRow direction_row;
+    private Gtk.Scale speed_scale;
     private Adw.ToastOverlay toast_overlay;
+    private Adw.Toast? status_toast;
     private bool updating;
+    private bool busy;
+    private uint speed_timeout_id;
 
     public LinuxScrollFixWindow (Gtk.Application application) {
         Object (
@@ -40,12 +45,48 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
         profiles.append ("Precise");
         profiles.append ("Balanced");
         profiles.append ("Rapid");
+        profiles.append ("Custom");
         profile_row = new Adw.ComboRow ();
         profile_row.title = "Profile";
         profile_row.subtitle = "Fine control with a gentle top speed";
         profile_row.model = profiles;
         profile_row.selected = 0;
         general_group.add (profile_row);
+
+        speed_row = new Adw.ActionRow ();
+        speed_row.title = "Scroll Speed";
+        speed_row.subtitle = "Precise calibration";
+        var speed_box = new Gtk.Box (Gtk.Orientation.VERTICAL, 0);
+        speed_box.width_request = 255;
+        speed_box.margin_top = 8;
+        speed_box.margin_bottom = 8;
+        speed_scale = new Gtk.Scale.with_range (
+            Gtk.Orientation.HORIZONTAL,
+            0.0,
+            8.0,
+            1.0
+        );
+        speed_scale.draw_value = false;
+        speed_scale.set_round_digits (0);
+        speed_scale.set_value (3.0);
+        for (int level = 0; level <= 8; level++) {
+            speed_scale.add_mark (level, Gtk.PositionType.BOTTOM, null);
+        }
+        speed_box.append (speed_scale);
+        var speed_labels = new Gtk.Box (Gtk.Orientation.HORIZONTAL, 0);
+        var slow_label = new Gtk.Label ("Slow");
+        slow_label.add_css_class ("dim-label");
+        slow_label.halign = Gtk.Align.START;
+        slow_label.hexpand = true;
+        var fast_label = new Gtk.Label ("Fast");
+        fast_label.add_css_class ("dim-label");
+        fast_label.halign = Gtk.Align.END;
+        speed_labels.append (slow_label);
+        speed_labels.append (fast_label);
+        speed_box.append (speed_labels);
+        speed_row.add_suffix (speed_box);
+        speed_row.activatable_widget = speed_scale;
+        general_group.add (speed_row);
 
         var directions = new Gtk.StringList (null);
         directions.append ("Traditional");
@@ -56,17 +97,24 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
         general_group.add (direction_row);
 
         service_row.notify["active"].connect (() => {
-            if (!updating) {
+            if (!updating && !busy) {
                 change_service.begin (service_row.active);
             }
         });
         profile_row.notify["selected"].connect (() => {
-            if (!updating && profile_row.selected != Gtk.INVALID_LIST_POSITION) {
+            if (!updating && !busy && profile_row.selected < 3) {
                 change_profile.begin (profile_row.selected);
+            } else if (!updating && !busy && profile_row.selected == 3) {
+                profile_row.subtitle = "Use the speed slider below";
+            }
+        });
+        speed_scale.value_changed.connect (() => {
+            if (!updating && !busy) {
+                schedule_speed_change ((uint) Math.round (speed_scale.get_value ()));
             }
         });
         direction_row.notify["selected"].connect (() => {
-            if (!updating) {
+            if (!updating && !busy) {
                 change_direction.begin (direction_row.selected);
             }
         });
@@ -81,6 +129,7 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
             bool active = read_state (output, "active") == "true";
             bool enabled = read_state (output, "enabled") == "true";
             string profile = read_state (output, "profile");
+            string speed = read_state (output, "speed");
             string direction = read_state (output, "direction");
 
             updating = true;
@@ -99,10 +148,19 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
                     profile_row.subtitle = "Maximum speed for long pages";
                     break;
                 default:
-                    profile_row.selected = Gtk.INVALID_LIST_POSITION;
-                    profile_row.subtitle = "Custom configuration";
+                    profile_row.selected = 3;
+                    profile_row.subtitle = "Custom speed";
                     break;
             }
+            uint speed_level = 3;
+            if (speed != "unknown") {
+                int parsed_speed = int.parse (speed);
+                if (parsed_speed >= 0 && parsed_speed <= 8) {
+                    speed_level = (uint) parsed_speed;
+                }
+            }
+            speed_scale.set_value (speed_level);
+            update_speed_subtitle (speed_level, profile);
             direction_row.selected = direction == "natural" ? 1 : 0;
             updating = false;
 
@@ -141,7 +199,7 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
         string direction = selected == 1 ? "natural" : "traditional";
         try {
             yield run_command ({ PKEXEC, HELPER, "set-direction", direction });
-            toast_overlay.add_toast (new Adw.Toast ("Scroll direction updated"));
+            show_status ("Scroll direction updated");
         } catch (Error error) {
             show_error (error.message);
         }
@@ -149,6 +207,7 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
     }
 
     private async void change_profile (uint selected) {
+        cancel_speed_timeout ();
         set_busy (true);
         string profile;
         switch (selected) {
@@ -167,11 +226,60 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
         }
         try {
             yield run_command ({ PKEXEC, HELPER, "set-profile", profile });
-            toast_overlay.add_toast (new Adw.Toast ("Profile updated"));
+            show_status ("Profile updated");
         } catch (Error error) {
             show_error (error.message);
         }
         yield refresh_state ();
+    }
+
+    private void schedule_speed_change (uint level) {
+        cancel_speed_timeout ();
+        updating = true;
+        profile_row.selected = 3;
+        profile_row.subtitle = "Custom speed";
+        update_speed_subtitle (level, "custom");
+        updating = false;
+        speed_timeout_id = Timeout.add (450, () => {
+            speed_timeout_id = 0;
+            change_speed.begin (level);
+            return Source.REMOVE;
+        });
+    }
+
+    private void cancel_speed_timeout () {
+        if (speed_timeout_id != 0) {
+            Source.remove (speed_timeout_id);
+            speed_timeout_id = 0;
+        }
+    }
+
+    private async void change_speed (uint level) {
+        set_busy (true);
+        try {
+            yield run_command ({ PKEXEC, HELPER, "set-speed", level.to_string () });
+            show_status ("Scroll speed updated");
+        } catch (Error error) {
+            show_error (error.message);
+        }
+        yield refresh_state ();
+    }
+
+    private void update_speed_subtitle (uint level, string profile) {
+        switch (profile) {
+            case "precise":
+                speed_row.subtitle = "Precise calibration";
+                break;
+            case "balanced":
+                speed_row.subtitle = "Balanced calibration";
+                break;
+            case "rapid":
+                speed_row.subtitle = "Rapid calibration";
+                break;
+            default:
+                speed_row.subtitle = "Custom level %u of 8".printf (level);
+                break;
+        }
     }
 
     private async string run_command (string[] arguments) throws Error {
@@ -208,13 +316,32 @@ private class LinuxScrollFixWindow : Adw.ApplicationWindow {
     }
 
     private void set_busy (bool busy) {
-        service_row.sensitive = !busy;
-        profile_row.sensitive = !busy;
-        direction_row.sensitive = !busy;
+        this.busy = busy;
+    }
+
+    private void show_status (string message) {
+        if (status_toast == null) {
+            var toast = new Adw.Toast (message);
+            status_toast = toast;
+            toast.dismissed.connect (() => {
+                if (status_toast == toast) {
+                    status_toast = null;
+                }
+            });
+        } else {
+            status_toast.title = message;
+        }
+        toast_overlay.add_toast (status_toast);
     }
 
     private void show_error (string message) {
-        toast_overlay.add_toast (new Adw.Toast (message));
+        if (status_toast != null) {
+            status_toast.dismiss ();
+            status_toast = null;
+        }
+        var toast = new Adw.Toast (message);
+        toast.priority = Adw.ToastPriority.HIGH;
+        toast_overlay.add_toast (toast);
     }
 }
 
