@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Linux Scroll Fix
+Comment=Configure precise, smooth mouse-wheel scrolling
+Exec=linux-scroll-fix
+Icon=input-mouse-symbolic
+Terminal=false
+Type=Application
+Categories=Settings;HardwareSettings;
+Keywords=mouse;wheel;scroll;smooth;
+StartupNotify=true
+X-GNOME-UsesNotifications=true

@@ -1,4 +1,5 @@
 /target/
+/build/
 /.toolchain/
 *.log
 .idea/

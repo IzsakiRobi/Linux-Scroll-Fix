@@ -1,3 +1,7 @@
+// The capped acceleration curve and its source parameters are derived from
+// Mac Mouse Fix by Noah Nuebling under the MMF License. See
+// THIRD_PARTY_NOTICES.md. The Linux animation and tail model are independent.
+
 use crate::{AccelerationCurve, AnalyzerMode, AxisConfig, Config, Direction};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

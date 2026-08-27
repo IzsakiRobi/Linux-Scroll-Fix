@@ -266,6 +266,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "linux-scroll-fixctl"
+version = "0.1.0-dev"
+dependencies = [
+ "anyhow",
+ "clap",
+ "linux-scroll-fix-core",
+ "toml",
+]
+
+[[package]]
 name = "linux-scroll-fixd"
 version = "0.1.0-dev"
 dependencies = [

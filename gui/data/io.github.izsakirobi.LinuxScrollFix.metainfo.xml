@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.izsakirobi.LinuxScrollFix</id>
+  <name>Linux Scroll Fix</name>
+  <summary>Configure precise, smooth mouse-wheel scrolling</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT AND LicenseRef-MMF</project_license>
+  <launchable type="desktop-id">io.github.izsakirobi.LinuxScrollFix.desktop</launchable>
+  <description>
+    <p>Linux Scroll Fix gives traditional mouse wheels precise, smooth scrolling on Linux desktops.</p>
+  </description>
+  <url type="homepage">https://github.com/IzsakiRobi/Linux-Scroll-Fix</url>
+  <developer id="io.github.izsakirobi">
+    <name>IzsakiRobi</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-08-27"/>
+  </releases>
+</component>

@@ -1,3 +1,6 @@
+# The Precise profile includes acceleration values derived from Mac Mouse Fix
+# under the MMF License. See THIRD_PARTY_NOTICES.md.
+
 target_hz = 120
 smoothing = 0.08
 tail_smoothing = 0.045

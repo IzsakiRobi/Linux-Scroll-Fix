@@ -9,3 +9,22 @@ jobs:
       - run: cargo test --workspace
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo fmt --all -- --check
+      - run: bash -n scripts/install.sh scripts/uninstall.sh
+  gui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update
+      - run: >-
+          sudo apt-get install -y
+          appstream
+          desktop-file-utils
+          libadwaita-1-dev
+          libgtk-4-dev
+          meson
+          ninja-build
+          valac
+      - run: meson setup build/gui . --prefix=/usr/local --buildtype=release
+      - run: meson compile -C build/gui
+      - run: desktop-file-validate gui/data/io.github.izsakirobi.LinuxScrollFix.desktop
+      - run: appstreamcli validate --no-net gui/data/io.github.izsakirobi.LinuxScrollFix.metainfo.xml

@@ -1,0 +1,16 @@
+[package]
+name = "linux-scroll-fixctl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+linux-scroll-fix-core = { path = "../core" }
+toml.workspace = true
+
+[[bin]]
+name = "linux-scroll-fixctl"
+path = "src/main.rs"
