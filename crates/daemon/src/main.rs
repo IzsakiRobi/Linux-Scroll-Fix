@@ -89,9 +89,7 @@ fn run(
             _ => {
                 let choices = candidates
                     .iter()
-                    .map(|candidate| {
-                        format!("{} ({})", candidate.path.display(), candidate.name)
-                    })
+                    .map(|candidate| format!("{} ({})", candidate.path.display(), candidate.name))
                     .collect::<Vec<_>>()
                     .join(", ");
                 anyhow::bail!(
