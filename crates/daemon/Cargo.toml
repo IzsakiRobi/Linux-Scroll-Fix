@@ -1,0 +1,21 @@
+[package]
+name = "linux-scroll-fixd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+linux-scroll-fix-core = { path = "../core" }
+notify.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+evdev.workspace = true
+
+[[bin]]
+name = "linux-scroll-fixd"
+path = "src/main.rs"
