@@ -12,9 +12,33 @@ cd Linux-Scroll-Fix
 sudo ./scripts/install.sh
 ```
 
-The installer obtains `cargo`, `rust`, and `gcc` from Fedora, builds a release binary, and installs the default configuration. It does not install or enable a service yet.
+The installer obtains `cargo`, `rust`, and `gcc` from Fedora, builds a release binary, installs the default configuration, and enables the systemd service immediately and for future graphical boots.
 
-## Run
+The service starts only when exactly one safe wheel device matches the configured device-name patterns. This prevents an ambiguous device from being grabbed automatically.
+
+## Service
+
+Check the service and its current-boot log:
+
+```bash
+sudo systemctl status linux-scroll-fix.service
+sudo journalctl -u linux-scroll-fix.service -b
+```
+
+Stop or start scrolling without uninstalling:
+
+```bash
+sudo systemctl stop linux-scroll-fix.service
+sudo systemctl start linux-scroll-fix.service
+```
+
+## Manual run
+
+Stop the service before running a foreground copy:
+
+```bash
+sudo systemctl stop linux-scroll-fix.service
+```
 
 Discover suitable wheel devices:
 
@@ -28,7 +52,7 @@ Choose only the reported event node, then run in the foreground:
 sudo linux-scroll-fixd --device /dev/input/eventX --grab
 ```
 
-Press `Ctrl+C` to stop. The program refuses to capture input unless both an explicit device and `--grab` are supplied.
+Press `Ctrl+C` to stop. The program refuses to capture input without `--grab` and either an explicit device or unambiguous `--auto-device` selection.
 
 ## Configuration
 

@@ -20,8 +20,10 @@ install -Dm0755 "${project_dir}/target/release/linux-scroll-fixd" /usr/local/bin
 if [[ ! -e /etc/linux-scroll-fix/config.toml ]]; then
     install -Dm0644 "${project_dir}/config/default.toml" /etc/linux-scroll-fix/config.toml
 fi
+install -Dm0644 "${project_dir}/systemd/linux-scroll-fix.service" /etc/systemd/system/linux-scroll-fix.service
+systemctl daemon-reload
+systemctl enable --now linux-scroll-fix.service
 
-echo "Linux Scroll Fix installed. No service was enabled or started."
-echo "1. sudo linux-scroll-fixd --discover"
-echo "2. sudo linux-scroll-fixd --device /dev/input/eventX --grab"
-echo "3. Press Ctrl+C to stop."
+echo "Linux Scroll Fix installed and enabled."
+echo "Status: sudo systemctl status linux-scroll-fix.service"
+echo "Logs:   sudo journalctl -u linux-scroll-fix.service -b"

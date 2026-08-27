@@ -17,8 +17,11 @@ struct Args {
     #[arg(long)]
     discover: bool,
     /// Explicit evdev source, for example /dev/input/event4.
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["auto_device", "discover"])]
     device: Option<PathBuf>,
+    /// Use the source automatically when exactly one safe wheel device is found.
+    #[arg(long, conflicts_with_all = ["device", "discover"])]
+    auto_device: bool,
     /// Exclusively capture the source. Required for actual conversion.
     #[arg(long)]
     grab: bool,
@@ -42,11 +45,23 @@ fn main() -> Result<()> {
         println!("configuration is valid");
         return Ok(());
     }
-    run(config, args.discover, args.device, args.grab)
+    run(
+        config,
+        args.discover,
+        args.device,
+        args.auto_device,
+        args.grab,
+    )
 }
 
 #[cfg(target_os = "linux")]
-fn run(config: Config, discover: bool, device: Option<PathBuf>, grab: bool) -> Result<()> {
+fn run(
+    config: Config,
+    discover: bool,
+    device: Option<PathBuf>,
+    auto_device: bool,
+    grab: bool,
+) -> Result<()> {
     if discover {
         for candidate in linux::discover(&config)? {
             println!(
@@ -59,13 +74,50 @@ fn run(config: Config, discover: bool, device: Option<PathBuf>, grab: bool) -> R
         }
         return Ok(());
     }
-    let path = device.ok_or_else(|| {
-        anyhow::anyhow!("select a source with --device after checking --discover")
-    })?;
+    let path = if auto_device {
+        let candidates = linux::discover(&config)?;
+        match candidates.as_slice() {
+            [candidate] => {
+                tracing::info!(
+                    device = %candidate.path.display(),
+                    name = %candidate.name,
+                    "automatically selected the only safe wheel device"
+                );
+                candidate.path.clone()
+            }
+            [] => anyhow::bail!("automatic selection found no safe wheel device"),
+            _ => {
+                let choices = candidates
+                    .iter()
+                    .map(|candidate| {
+                        format!("{} ({})", candidate.path.display(), candidate.name)
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                anyhow::bail!(
+                    "automatic selection requires exactly one safe wheel device; found {}: {}",
+                    candidates.len(),
+                    choices
+                )
+            }
+        }
+    } else {
+        device.ok_or_else(|| {
+            anyhow::anyhow!(
+                "select a source with --device after checking --discover, or use --auto-device"
+            )
+        })?
+    };
     linux::run(config, &path, grab)
 }
 
 #[cfg(not(target_os = "linux"))]
-fn run(_config: Config, _discover: bool, _device: Option<PathBuf>, _grab: bool) -> Result<()> {
+fn run(
+    _config: Config,
+    _discover: bool,
+    _device: Option<PathBuf>,
+    _auto_device: bool,
+    _grab: bool,
+) -> Result<()> {
     anyhow::bail!("the daemon input backend requires Linux")
 }

@@ -1,0 +1,18 @@
+[Unit]
+Description=Linux Scroll Fix mouse-wheel smoothing
+Documentation=https://github.com/IzsakiRobi/Linux-Scroll-Fix
+After=systemd-udevd.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/linux-scroll-fixd --auto-device --grab
+Restart=on-failure
+RestartSec=3s
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+PrivateTmp=true
+
+[Install]
+WantedBy=graphical.target
