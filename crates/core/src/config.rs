@@ -111,7 +111,12 @@ impl Default for Config {
             gesture_prime_units: 48,
             max_pending: 320.0,
             custom_speed_level: None,
-            device_name_patterns: vec!["mouse".into(), "receiver".into(), "vmware".into()],
+            device_name_patterns: vec![
+                "mouse".into(),
+                "receiver".into(),
+                "vmware".into(),
+                "keyd virtual pointer".into(),
+            ],
             vertical: AxisConfig::default(),
             horizontal: AxisConfig {
                 distance_per_tick: 36.0,

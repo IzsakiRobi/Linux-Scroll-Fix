@@ -9,7 +9,7 @@ stop_epsilon = 2.0
 gesture_idle_ms = 1500.0
 gesture_prime_units = 48
 max_pending = 960.0
-device_name_patterns = ["mouse", "receiver", "vmware"]
+device_name_patterns = ["mouse", "receiver", "vmware", "keyd virtual pointer"]
 
 [vertical]
 enabled = true

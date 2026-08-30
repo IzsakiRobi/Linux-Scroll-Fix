@@ -258,7 +258,7 @@ checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
 name = "linux-scroll-fix-core"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "serde",
  "thiserror",
@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "linux-scroll-fixctl"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -277,7 +277,7 @@ dependencies = [
 
 [[package]]
 name = "linux-scroll-fixd"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "anyhow",
  "clap",

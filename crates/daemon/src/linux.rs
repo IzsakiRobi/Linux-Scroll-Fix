@@ -13,6 +13,9 @@ use std::{
 };
 
 const OUTPUT_PREFIX: &str = "Linux Scroll Fix";
+const KEYD_POINTER_NAME: &str = "keyd virtual pointer";
+const KEYD_VENDOR: u16 = 0x0fac;
+const KEYD_POINTER_PRODUCT: u16 = 0x1ade;
 
 #[derive(Debug)]
 pub struct Candidate {
@@ -24,7 +27,7 @@ pub struct Candidate {
 
 pub fn discover(config: &Config) -> Result<Vec<Candidate>> {
     let mut result = Vec::new();
-    for (path, device) in enumerate() {
+    for (path, mut device) in enumerate() {
         let name = device.name().unwrap_or("Unnamed input device").to_owned();
         if name.starts_with(OUTPUT_PREFIX) {
             continue;
@@ -36,7 +39,12 @@ pub fn discover(config: &Config) -> Result<Vec<Candidate>> {
             continue;
         }
         let lower = name.to_lowercase();
-        if !config.device_name_patterns.is_empty()
+        let id = device.input_id();
+        let is_keyd_pointer = name == KEYD_POINTER_NAME
+            && id.vendor() == KEYD_VENDOR
+            && id.product() == KEYD_POINTER_PRODUCT;
+        if !is_keyd_pointer
+            && !config.device_name_patterns.is_empty()
             && !config
                 .device_name_patterns
                 .iter()
@@ -44,7 +52,24 @@ pub fn discover(config: &Config) -> Result<Vec<Candidate>> {
         {
             continue;
         }
-        let id = device.input_id();
+        if let Err(error) = device.grab() {
+            tracing::debug!(
+                device = %path.display(),
+                %name,
+                %error,
+                "skipping wheel device already captured by another process"
+            );
+            continue;
+        }
+        if let Err(error) = device.ungrab() {
+            tracing::warn!(
+                device = %path.display(),
+                %name,
+                %error,
+                "skipping wheel device that could not be released after availability check"
+            );
+            continue;
+        }
         result.push(Candidate {
             path,
             name,

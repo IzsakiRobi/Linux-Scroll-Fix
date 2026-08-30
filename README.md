@@ -2,14 +2,14 @@
 
 Precise, smooth mouse-wheel scrolling for Linux, with a native GNOME control panel. Physical mouse input is captured through `evdev`; pointer movement and buttons are forwarded through a virtual mouse, while wheel ticks drive a virtual two-finger touchpad.
 
-The included **Precise** profile is Fedora-tested with VMware Fusion and tuned to match Mac Mouse Fix High smoothness + Medium speed + Precision behavior. Every mechanical wheel detent starts immediately, isolated ticks move only a few pixels, and faster scrolling accelerates smoothly. **Balanced** keeps that smooth motion with a wider everyday speed range, while **Rapid** is designed for quickly traversing long pages and documents.
+The included **Precise** profile retains the Mac Mouse Fix High smoothness + Medium speed + Precision tuning and is validated on native Fedora hardware with a physical Logitech mouse. Every mechanical wheel detent starts immediately, isolated ticks move only a few pixels, and faster scrolling accelerates smoothly. **Balanced** keeps that smooth motion with a wider everyday speed range, while **Rapid** is designed for quickly traversing long pages and documents.
 
 ## Install on Fedora
 
 Download the RPM from the latest GitHub release and install it with:
 
 ```bash
-sudo dnf install ./linux-scroll-fix-0.5.0-1.*.rpm
+sudo dnf install ./linux-scroll-fix-0.5.1-1.*.rpm
 ```
 
 Alternatively, build and install directly from the repository:
@@ -59,11 +59,16 @@ Stop the service before running a foreground copy:
 sudo systemctl stop linux-scroll-fix.service
 ```
 
-Discover suitable wheel devices:
+Discover suitable, currently available wheel devices:
 
 ```bash
 sudo linux-scroll-fixd --discover
 ```
+
+Devices already captured by another input remapper are omitted. When `keyd`
+owns the physical mouse, Linux Scroll Fix automatically uses the upstream
+`keyd virtual pointer` instead. This keeps existing keyd button mappings in
+the input path without competing for the same exclusive evdev grab.
 
 Choose only the reported event node, then run in the foreground:
 

@@ -292,11 +292,13 @@ fn replace_config_and_restart(path: &Path, config: &Config) -> Result<()> {
     atomic_write(path, replacement.as_bytes())?;
 
     let should_restart = service_is("is-active") || service_is("is-enabled");
-    if should_restart && let Err(error) = systemctl(&["restart", SERVICE]) {
-        atomic_write(path, &original).context("cannot restore previous configuration")?;
-        let _ = systemctl(&["restart", SERVICE]);
-        return Err(error)
-            .context("service rejected the new configuration; previous settings restored");
+    if should_restart {
+        if let Err(error) = systemctl(&["restart", SERVICE]) {
+            atomic_write(path, &original).context("cannot restore previous configuration")?;
+            let _ = systemctl(&["restart", SERVICE]);
+            return Err(error)
+                .context("service rejected the new configuration; previous settings restored");
+        }
     }
     Ok(())
 }
