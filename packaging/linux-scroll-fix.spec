@@ -70,7 +70,7 @@ systemctl enable --now linux-scroll-fix.service >/dev/null 2>&1 || :
 
 %changelog
 * Sun Sep 20 2026 IzsakiRobi <izsakirobi@users.noreply.github.com> - 0.5.2-1
-- Handle duplicate receiver mouse interfaces with keyd on Linux 7.3
+- Handle duplicate receiver interfaces and generic virtual remapper pointers
 - Wait for stable input selection during startup
 
 * Sun Aug 30 2026 IzsakiRobi <izsakirobi@users.noreply.github.com> - 0.5.1-1

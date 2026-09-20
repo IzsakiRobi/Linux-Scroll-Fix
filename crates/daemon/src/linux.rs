@@ -13,9 +13,6 @@ use std::{
 };
 
 const OUTPUT_PREFIX: &str = "Linux Scroll Fix";
-const KEYD_POINTER_NAME: &str = "keyd virtual pointer";
-const KEYD_VENDOR: u16 = 0x0fac;
-const KEYD_POINTER_PRODUCT: u16 = 0x1ade;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Candidate {
@@ -24,12 +21,14 @@ pub struct Candidate {
     pub vendor: u16,
     pub product: u16,
     pub usb_source: Option<String>,
+    pub is_virtual: bool,
 }
 
 #[derive(Default)]
 struct Discovery {
     available: Vec<Candidate>,
     busy_usb_sources: Vec<String>,
+    busy_wheel_count: usize,
 }
 
 fn usb_source(phys: &str) -> Option<String> {
@@ -37,10 +36,17 @@ fn usb_source(phys: &str) -> Option<String> {
     device.starts_with("usb-").then(|| device.to_owned())
 }
 
-fn is_keyd_pointer(candidate: &Candidate) -> bool {
-    candidate.name == KEYD_POINTER_NAME
-        && candidate.vendor == KEYD_VENDOR
-        && candidate.product == KEYD_POINTER_PRODUCT
+fn virtual_input_path(sysfs_path: &Path) -> bool {
+    sysfs_path.starts_with("/sys/devices/virtual/input")
+}
+
+fn is_virtual_input(event_path: &Path) -> bool {
+    event_path
+        .file_name()
+        .and_then(|name| {
+            std::fs::canonicalize(Path::new("/sys/class/input").join(name).join("device")).ok()
+        })
+        .is_some_and(|path| virtual_input_path(&path))
 }
 
 pub fn discover(config: &Config) -> Result<Vec<Candidate>> {
@@ -60,24 +66,17 @@ fn scan(config: &Config) -> Result<Discovery> {
         if !(rel.contains(Rel::REL_X) && rel.contains(Rel::REL_Y) && rel.contains(Rel::REL_WHEEL)) {
             continue;
         }
-        let lower = name.to_lowercase();
         let id = device.input_id();
-        let is_keyd_pointer = name == KEYD_POINTER_NAME
-            && id.vendor() == KEYD_VENDOR
-            && id.product() == KEYD_POINTER_PRODUCT;
-        if !is_keyd_pointer
-            && !config.device_name_patterns.is_empty()
-            && !config
-                .device_name_patterns
-                .iter()
-                .any(|p| lower.contains(&p.to_lowercase()))
-        {
-            continue;
-        }
-        let source = device.physical_path().and_then(usb_source);
+        let is_virtual = is_virtual_input(&path);
+        let source = if is_virtual {
+            None
+        } else {
+            device.physical_path().and_then(usb_source)
+        };
         if let Err(error) = device.grab() {
             // Only EBUSY indicates an existing exclusive owner, not EACCES or ENODEV.
             if error.raw_os_error() == Some(16) {
+                result.busy_wheel_count += 1;
                 if let Some(source) = source {
                     result.busy_usb_sources.push(source);
                 }
@@ -99,12 +98,24 @@ fn scan(config: &Config) -> Result<Discovery> {
             );
             continue;
         }
+        // Explicit physical-name filters remain supported. Remapper outputs are
+        // identified by the kernel, not by application names or vendor IDs.
+        if !is_virtual
+            && !config.device_name_patterns.is_empty()
+            && !config
+                .device_name_patterns
+                .iter()
+                .any(|pattern| name.to_lowercase().contains(&pattern.to_lowercase()))
+        {
+            continue;
+        }
         result.available.push(Candidate {
             path,
             name,
             vendor: id.vendor(),
             product: id.product(),
             usb_source: source,
+            is_virtual,
         });
     }
     result.available.sort_by(|a, b| a.path.cmp(&b.path));
@@ -112,23 +123,28 @@ fn scan(config: &Config) -> Result<Discovery> {
 }
 
 fn select_candidate(discovery: &Discovery) -> Result<&Candidate> {
-    let has_keyd = discovery.available.iter().any(is_keyd_pointer);
+    let has_virtual = discovery.available.iter().any(|c| c.is_virtual);
     let is_captured_sibling = |candidate: &&Candidate| {
         candidate
             .usb_source
             .as_ref()
             .is_some_and(|source| discovery.busy_usb_sources.contains(source))
     };
-    // A free logical mouse can be a sibling of an exclusively captured receiver.
-    // Do not select it while keyd is still creating its virtual pointer.
-    if !has_keyd && discovery.available.iter().any(|c| is_captured_sibling(&c)) {
+    // A remapper may create its output after grabbing a receiver interface.
+    // Never use the free sibling as a fallback during that gap.
+    if !has_virtual && discovery.available.iter().any(|c| is_captured_sibling(&c)) {
         bail!("receiver mouse is captured; waiting for a safe upstream pointer");
     }
-    let candidates: Vec<_> = discovery
+    let mut candidates: Vec<_> = discovery
         .available
         .iter()
         .filter(|candidate| !is_captured_sibling(candidate))
         .collect();
+    // Keyboard-only remappers can expose an idle virtual pointer. With no
+    // captured wheel source, a physical mouse must not be displaced by it.
+    if discovery.busy_wheel_count == 0 && candidates.iter().any(|c| !c.is_virtual) {
+        candidates.retain(|c| !c.is_virtual);
+    }
     match candidates.as_slice() {
         [candidate] => Ok(candidate),
         [] => bail!("automatic selection found no safe wheel device"),
@@ -145,8 +161,8 @@ fn select_candidate(discovery: &Discovery) -> Result<&Candidate> {
 }
 
 pub fn auto_device(config: &Config) -> Result<PathBuf> {
-    // keyd uses Type=simple: ordering after its process starts does not mean
-    // its input devices are ready. Allow enumeration and grabs to settle.
+    // Remappers may start asynchronously. Allow enumeration and grabs to settle
+    // without depending on a particular remapper service or kernel version.
     let started = Instant::now();
     let mut previous = None;
     let mut stable_since = Instant::now();
@@ -184,7 +200,7 @@ pub fn run(config: Config, path: &Path, grab: bool) -> Result<()> {
     verify_source(&source)?;
     source.set_nonblocking(true)?;
     let source_name = source.name().unwrap_or("Unnamed mouse").to_owned();
-    let mut outputs = Outputs::new().context("cannot create uinput devices")?;
+    let mut outputs = Outputs::new(&source).context("cannot create uinput devices")?;
     // Outputs exist before the exclusive grab, so setup failure cannot remove the cursor.
     source.grab().context("cannot exclusively grab source")?;
     tracing::info!(device = %path.display(), name = source_name, "capturing mouse");
@@ -294,26 +310,32 @@ impl Outputs {
     const GAP: i32 = 400;
     const MARGIN: i32 = 600;
 
-    fn new() -> Result<Self> {
-        let mut keys = AttributeSet::<Key>::new();
-        for key in [
-            Key::BTN_LEFT,
-            Key::BTN_RIGHT,
-            Key::BTN_MIDDLE,
-            Key::BTN_SIDE,
-            Key::BTN_EXTRA,
-        ] {
-            keys.insert(key);
-        }
+    fn new(source: &Device) -> Result<Self> {
+        // Preserve all source buttons and key mappings, including remappers
+        // that combine keyboard shortcuts with a relative pointer.
         let mut rel = AttributeSet::<Rel>::new();
-        rel.insert(Rel::REL_X);
-        rel.insert(Rel::REL_Y);
-        let mouse = VirtualDevice::builder()?
+        if let Some(axes) = source.supported_relative_axes() {
+            for axis in axes.iter() {
+                if ![
+                    Rel::REL_WHEEL,
+                    Rel::REL_HWHEEL,
+                    Rel::REL_WHEEL_HI_RES,
+                    Rel::REL_HWHEEL_HI_RES,
+                ]
+                .contains(&axis)
+                {
+                    rel.insert(axis);
+                }
+            }
+        }
+        let mut builder = VirtualDevice::builder()?
             .name("Linux Scroll Fix Mouse")
             .input_id(InputId::new(BusType::BUS_USB, 0x1d6b, 0x4d46, 1))
-            .with_keys(&keys)?
-            .with_relative_axes(&rel)?
-            .build()?;
+            .with_relative_axes(&rel)?;
+        if let Some(keys) = source.supported_keys() {
+            builder = builder.with_keys(keys)?;
+        }
+        let mouse = builder.build()?;
 
         let mut touch_keys = AttributeSet::<Key>::new();
         for key in [
@@ -490,131 +512,210 @@ fn ev(kind: EventType, code: u16, value: i32) -> InputEvent {
 mod tests {
     use super::{
         Candidate, Discovery, gesture_prime, gesture_should_end, restart_position,
-        select_candidate, usb_source,
+        select_candidate, usb_source, virtual_input_path,
     };
+    use std::{path::Path, time::Duration};
 
-    fn mouse(event: u8, name: &str, vendor: u16, product: u16, phys: &str) -> Candidate {
+    fn physical(event: u8, phys: &str) -> Candidate {
         Candidate {
             path: format!("/dev/input/event{event}").into(),
-            name: name.into(),
-            vendor,
-            product,
+            name: "Pointer".into(),
+            vendor: 0x1234,
+            product: 0x5678,
             usb_source: usb_source(phys),
+            is_virtual: false,
         }
     }
 
-    fn keyd() -> Candidate {
-        mouse(19, "keyd virtual pointer", 0x0fac, 0x1ade, "")
+    fn virtual_pointer(event: u8, name: &str) -> Candidate {
+        Candidate {
+            name: name.into(),
+            is_virtual: true,
+            ..physical(event, "")
+        }
+    }
+
+    fn captured_receiver(available: Vec<Candidate>) -> Discovery {
+        Discovery {
+            available,
+            busy_usb_sources: vec!["usb-controller-port1".into()],
+            busy_wheel_count: 1,
+        }
     }
 
     #[test]
-    fn keyd_receiver_sibling_does_not_steal_auto_selection() {
-        let discovery = Discovery {
-            available: vec![
-                mouse(
-                    4,
-                    "Logitech Wireless Mouse PID:b036",
-                    0x046d,
-                    0xb036,
-                    "usb-0000:00:14.0-2/input2:1",
-                ),
-                keyd(),
-            ],
-            busy_usb_sources: vec!["usb-0000:00:14.0-2".into()],
-        };
-        assert_eq!(select_candidate(&discovery).unwrap().path, keyd().path);
+    fn receiver_sibling_uses_any_remapper_output() {
+        for name in [
+            "keyd virtual pointer",
+            "input-remapper output",
+            "Custom Device",
+        ] {
+            let upstream = virtual_pointer(42, name);
+            let discovery = captured_receiver(vec![
+                physical(3, "usb-controller-port1/input2:1"),
+                upstream.clone(),
+            ]);
+            assert_eq!(select_candidate(&discovery).unwrap(), &upstream);
+        }
     }
 
     #[test]
-    fn busy_receiver_waits_for_delayed_keyd_pointer() {
-        let mut discovery = Discovery {
-            available: vec![mouse(
-                4,
-                "Logitech Wireless Mouse PID:b036",
-                0x046d,
-                0xb036,
-                "usb-0000:00:14.0-2/input2:1",
-            )],
-            busy_usb_sources: vec!["usb-0000:00:14.0-2".into()],
-        };
+    fn captured_receiver_waits_for_delayed_remapper() {
+        let mut discovery = captured_receiver(vec![physical(3, "usb-controller-port1/input2:1")]);
         assert!(select_candidate(&discovery).is_err());
-        discovery.available.push(keyd());
-        assert_eq!(select_candidate(&discovery).unwrap().path, keyd().path);
+        let upstream = virtual_pointer(99, "Arbitrary Output");
+        discovery.available.push(upstream.clone());
+        assert_eq!(select_candidate(&discovery).unwrap(), &upstream);
     }
 
     #[test]
-    fn separate_mouse_remains_ambiguous() {
-        let discovery = Discovery {
-            available: vec![
-                mouse(
-                    4,
-                    "Other Mouse",
-                    0x046d,
-                    0xb036,
-                    "usb-0000:00:14.0-3/input0",
-                ),
-                keyd(),
+    fn unrelated_mouse_and_multiple_outputs_remain_ambiguous() {
+        for available in [
+            vec![
+                physical(3, "usb-controller-port2/input0"),
+                virtual_pointer(42, "Output"),
             ],
-            busy_usb_sources: vec!["usb-0000:00:14.0-2".into()],
+            vec![
+                virtual_pointer(42, "Output A"),
+                virtual_pointer(43, "Output B"),
+            ],
+        ] {
+            assert!(select_candidate(&captured_receiver(available)).is_err());
+        }
+    }
+
+    #[test]
+    fn keyboard_only_remapper_does_not_displace_physical_mouse() {
+        let mouse = physical(3, "usb-controller-port1/input0");
+        let discovery = Discovery {
+            available: vec![mouse.clone(), virtual_pointer(42, "keyd virtual pointer")],
+            ..Discovery::default()
         };
+        assert_eq!(select_candidate(&discovery).unwrap(), &mouse);
+    }
+
+    #[test]
+    fn physical_names_and_ids_do_not_create_virtual_identity() {
+        let mut mouse = physical(3, "usb-controller-port2/input0");
+        mouse.name = "keyd virtual pointer".into();
+        mouse.vendor = 0x0fac;
+        mouse.product = 0x1ade;
+        let discovery = captured_receiver(vec![mouse, virtual_pointer(42, "Output")]);
         assert!(select_candidate(&discovery).is_err());
     }
 
     #[test]
-    fn keyboard_only_keyd_does_not_override_physical_mouse() {
+    fn no_remapper_supports_usb_bluetooth_and_other_pointer_names() {
+        for (name, phys) in [
+            ("Mouse", "usb-controller-port1/input0"),
+            ("Trackball", "bluetooth-device"),
+            ("Office Pointer", "serio0/input0"),
+        ] {
+            let mut mouse = physical(3, phys);
+            mouse.name = name.into();
+            let discovery = Discovery {
+                available: vec![mouse.clone()],
+                ..Discovery::default()
+            };
+            assert_eq!(select_candidate(&discovery).unwrap(), &mouse);
+        }
+        assert!(select_candidate(&Discovery::default()).is_err());
+    }
+
+    #[test]
+    fn multiple_physical_mice_are_not_selected_arbitrarily() {
         let discovery = Discovery {
-            available: vec![
-                mouse(4, "Mouse", 0x046d, 0xb036, "usb-0000:00:14.0-2/input0"),
-                keyd(),
-            ],
+            available: vec![physical(3, ""), physical(4, "")],
             ..Discovery::default()
         };
         assert!(select_candidate(&discovery).is_err());
     }
 
     #[test]
-    fn same_name_with_wrong_identity_does_not_hide_mouse() {
-        let mut impostor = keyd();
-        impostor.vendor = 0x1234;
+    fn captured_non_usb_mouse_or_remapper_chain_uses_remaining_output() {
+        let output = virtual_pointer(51, "Final Output");
         let discovery = Discovery {
-            available: vec![
-                mouse(4, "Mouse", 0x046d, 0xb036, "usb-0000:00:14.0-2/input0"),
-                impostor,
-            ],
-            busy_usb_sources: vec!["usb-0000:00:14.0-2".into()],
+            available: vec![output.clone()],
+            busy_wheel_count: 2,
+            ..Discovery::default()
         };
-        assert!(select_candidate(&discovery).is_err());
+        assert_eq!(select_candidate(&discovery).unwrap(), &output);
     }
 
     #[test]
-    fn original_single_mouse_and_keyd_paths_still_work() {
-        for candidate in [
-            keyd(),
-            mouse(4, "Mouse", 0x046d, 0xc548, "usb-0000:00:14.0-2/input0"),
-        ] {
-            let discovery = Discovery {
-                available: vec![candidate.clone()],
-                ..Discovery::default()
-            };
-            assert_eq!(select_candidate(&discovery).unwrap(), &candidate);
-        }
-        assert!(select_candidate(&Discovery::default()).is_err());
+    fn virtual_identity_comes_from_sysfs_not_name_or_bus() {
+        assert!(virtual_input_path(Path::new(
+            "/sys/devices/virtual/input/input42"
+        )));
+        assert!(!virtual_input_path(Path::new(
+            "/sys/devices/pci0000/input/input42"
+        )));
+        assert!(!virtual_input_path(Path::new(
+            "/sys/devices/virtual/input-other/input42"
+        )));
     }
 
     #[test]
     fn usb_interfaces_group_by_receiver_without_merging_ports() {
         assert_eq!(
-            usb_source("usb-0000:00:14.0-2/input1"),
-            usb_source("usb-0000:00:14.0-2/input2:1")
+            usb_source("usb-controller-port1/input1"),
+            usb_source("usb-controller-port1/input2:1")
         );
         assert_ne!(
-            usb_source("usb-0000:00:14.0-2/input1"),
-            usb_source("usb-0000:00:14.0-3/input1")
+            usb_source("usb-controller-port1/input1"),
+            usb_source("usb-controller-port2/input1")
         );
         assert_eq!(usb_source(""), None);
         assert_eq!(usb_source("bluetooth/input0"), None);
     }
-    use std::time::Duration;
+
+    #[test]
+    #[ignore = "requires access to /dev/uinput and /dev/input; emits no input events"]
+    fn kernel_virtual_source_identity_and_forwarded_capabilities() {
+        use super::{AttributeSet, Device, Key, Outputs, Rel, VirtualDevice, is_virtual_input};
+        let mut keys = AttributeSet::<Key>::new();
+        for key in [Key::BTN_LEFT, Key::BTN_TASK, Key::KEY_A] {
+            keys.insert(key);
+        }
+        let mut axes = AttributeSet::<Rel>::new();
+        for axis in [Rel::REL_X, Rel::REL_Y, Rel::REL_WHEEL] {
+            axes.insert(axis);
+        }
+        let mut input = VirtualDevice::builder()
+            .unwrap()
+            .name("ScrollFix Capability Test")
+            .with_keys(&keys)
+            .unwrap()
+            .with_relative_axes(&axes)
+            .unwrap()
+            .build()
+            .unwrap();
+        let path = input
+            .enumerate_dev_nodes_blocking()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
+        assert!(is_virtual_input(&path));
+        let source = Device::open(path).unwrap();
+        let mut output = Outputs::new(&source).unwrap();
+        let path = output
+            .mouse
+            .enumerate_dev_nodes_blocking()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
+        let forwarded = Device::open(path).unwrap();
+        let forwarded_keys = forwarded.supported_keys().unwrap();
+        assert!(forwarded_keys.contains(Key::KEY_A));
+        assert!(forwarded_keys.contains(Key::BTN_TASK));
+        assert!(forwarded_keys.contains(Key::BTN_LEFT));
+        let forwarded_axes = forwarded.supported_relative_axes().unwrap();
+        assert!(forwarded_axes.contains(Rel::REL_X));
+        assert!(forwarded_axes.contains(Rel::REL_Y));
+        assert!(!forwarded_axes.contains(Rel::REL_WHEEL));
+    }
 
     #[test]
     fn recenter_restarts_on_the_opposite_side() {

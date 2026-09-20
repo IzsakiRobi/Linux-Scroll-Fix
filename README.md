@@ -65,10 +65,31 @@ Discover suitable, currently available wheel devices:
 sudo linux-scroll-fixd --discover
 ```
 
-Devices already captured by another input remapper are omitted. When `keyd`
-owns the physical mouse, Linux Scroll Fix automatically uses the upstream
-`keyd virtual pointer` instead. This keeps existing keyd button mappings in
-the input path without competing for the same exclusive evdev grab.
+Devices already captured by another input remapper are omitted. Virtual wheel
+pointers are identified through the kernel's input-device topology, independent
+of application name, vendor ID, event number, or kernel version. With a remapper
+such as keyd, the unique available output is used when the physical mouse is
+captured. An idle virtual pointer from a keyboard-only remapper does not override
+an available physical mouse.
+
+When a USB receiver exposes multiple mouse interfaces, a free sibling of an
+already captured interface is excluded from automatic selection. Discovery still
+lists it as available; `--auto-device` additionally checks receiver relationships.
+A source already captured by Scroll Fix itself is also omitted from `--discover`.
+
+Remappers must expose an available evdev/uinput relative pointer with `REL_X`,
+`REL_Y`, and `REL_WHEEL`. A program that exclusively grabs the mouse without
+forwarding a readable pointer cannot be chained this way. Multiple unrelated
+mice or multiple possible remapper outputs remain ambiguous; use an explicit
+source instead of relying on arbitrary event ordering. Source key/button codes
+are preserved, including extra mouse buttons and remapped keyboard shortcuts.
+Remappers using broad device-matching rules must exclude the `Linux Scroll Fix`
+virtual outputs to avoid capturing their own downstream input again.
+
+New configurations use an empty `device_name_patterns` list, admitting all
+wheel-capable pointer names. Existing name filters are preserved for physical
+devices; use an empty list to remove an old naming restriction. Virtual remapper
+outputs are discovered independently of these physical-name filters.
 
 Choose only the reported event node, then run in the foreground:
 

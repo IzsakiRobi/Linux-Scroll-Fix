@@ -17,7 +17,7 @@
   <releases>
     <release version="0.5.2" date="2026-09-20">
       <description>
-        <p>Fixes automatic keyd source selection with duplicate receiver mouse interfaces and waits for input devices to settle during startup.</p>
+        <p>Improves automatic source selection for input remappers and duplicate receiver interfaces, without device-name or vendor restrictions.</p>
       </description>
     </release>
     <release version="0.5.1" date="2026-08-30">
