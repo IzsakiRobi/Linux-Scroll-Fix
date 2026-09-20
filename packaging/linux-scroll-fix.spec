@@ -1,5 +1,5 @@
 Name:           linux-scroll-fix
-Version:        0.5.1
+Version:        0.5.2
 Release:        1%{?dist}
 Summary:        Precise, smooth mouse-wheel scrolling for Linux
 
@@ -69,6 +69,10 @@ systemctl enable --now linux-scroll-fix.service >/dev/null 2>&1 || :
 %{_datadir}/polkit-1/actions/io.github.izsakirobi.linux-scroll-fix.policy
 
 %changelog
+* Sun Sep 20 2026 IzsakiRobi <izsakirobi@users.noreply.github.com> - 0.5.2-1
+- Handle duplicate receiver mouse interfaces with keyd on Linux 7.3
+- Wait for stable input selection during startup
+
 * Sun Aug 30 2026 IzsakiRobi <izsakirobi@users.noreply.github.com> - 0.5.1-1
 - Add keyd-compatible input discovery and bound service restart failures
 - Restore compatibility with the declared Rust 1.85 minimum version

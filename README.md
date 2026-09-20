@@ -9,7 +9,7 @@ The included **Precise** profile retains the Mac Mouse Fix High smoothness + Med
 Download the RPM from the latest GitHub release and install it with:
 
 ```bash
-sudo dnf install ./linux-scroll-fix-0.5.1-1.*.rpm
+sudo dnf install ./linux-scroll-fix-0.5.2-1.*.rpm
 ```
 
 Alternatively, build and install directly from the repository:
@@ -22,7 +22,7 @@ sudo ./scripts/install.sh
 
 The installer obtains the Rust, Vala, GTK 4, and libadwaita build dependencies from Fedora, builds the daemon and control panel, installs the default configuration, and enables the systemd service immediately and for future graphical boots.
 
-The service starts only when exactly one safe wheel device matches the configured device-name patterns. This prevents an ambiguous device from being grabbed automatically.
+The service waits briefly for input devices and remappers to settle, then starts only when exactly one safe wheel source is available. A free logical mouse sharing a USB receiver with an already captured mouse is not selected as an independent source. Unrelated mice remain ambiguous and are never grabbed arbitrarily.
 
 ## Control panel
 

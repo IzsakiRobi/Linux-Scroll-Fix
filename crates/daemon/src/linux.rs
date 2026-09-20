@@ -17,16 +17,38 @@ const KEYD_POINTER_NAME: &str = "keyd virtual pointer";
 const KEYD_VENDOR: u16 = 0x0fac;
 const KEYD_POINTER_PRODUCT: u16 = 0x1ade;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Candidate {
     pub path: PathBuf,
     pub name: String,
     pub vendor: u16,
     pub product: u16,
+    pub usb_source: Option<String>,
+}
+
+#[derive(Default)]
+struct Discovery {
+    available: Vec<Candidate>,
+    busy_usb_sources: Vec<String>,
+}
+
+fn usb_source(phys: &str) -> Option<String> {
+    let (device, _) = phys.split_once("/input")?;
+    device.starts_with("usb-").then(|| device.to_owned())
+}
+
+fn is_keyd_pointer(candidate: &Candidate) -> bool {
+    candidate.name == KEYD_POINTER_NAME
+        && candidate.vendor == KEYD_VENDOR
+        && candidate.product == KEYD_POINTER_PRODUCT
 }
 
 pub fn discover(config: &Config) -> Result<Vec<Candidate>> {
-    let mut result = Vec::new();
+    Ok(scan(config)?.available)
+}
+
+fn scan(config: &Config) -> Result<Discovery> {
+    let mut result = Discovery::default();
     for (path, mut device) in enumerate() {
         let name = device.name().unwrap_or("Unnamed input device").to_owned();
         if name.starts_with(OUTPUT_PREFIX) {
@@ -52,7 +74,14 @@ pub fn discover(config: &Config) -> Result<Vec<Candidate>> {
         {
             continue;
         }
+        let source = device.physical_path().and_then(usb_source);
         if let Err(error) = device.grab() {
+            // Only EBUSY indicates an existing exclusive owner, not EACCES or ENODEV.
+            if error.raw_os_error() == Some(16) {
+                if let Some(source) = source {
+                    result.busy_usb_sources.push(source);
+                }
+            }
             tracing::debug!(
                 device = %path.display(),
                 %name,
@@ -70,15 +99,80 @@ pub fn discover(config: &Config) -> Result<Vec<Candidate>> {
             );
             continue;
         }
-        result.push(Candidate {
+        result.available.push(Candidate {
             path,
             name,
             vendor: id.vendor(),
             product: id.product(),
+            usb_source: source,
         });
     }
-    result.sort_by(|a, b| a.path.cmp(&b.path));
+    result.available.sort_by(|a, b| a.path.cmp(&b.path));
     Ok(result)
+}
+
+fn select_candidate(discovery: &Discovery) -> Result<&Candidate> {
+    let has_keyd = discovery.available.iter().any(is_keyd_pointer);
+    let is_captured_sibling = |candidate: &&Candidate| {
+        candidate
+            .usb_source
+            .as_ref()
+            .is_some_and(|source| discovery.busy_usb_sources.contains(source))
+    };
+    // A free logical mouse can be a sibling of an exclusively captured receiver.
+    // Do not select it while keyd is still creating its virtual pointer.
+    if !has_keyd && discovery.available.iter().any(|c| is_captured_sibling(&c)) {
+        bail!("receiver mouse is captured; waiting for a safe upstream pointer");
+    }
+    let candidates: Vec<_> = discovery
+        .available
+        .iter()
+        .filter(|candidate| !is_captured_sibling(candidate))
+        .collect();
+    match candidates.as_slice() {
+        [candidate] => Ok(candidate),
+        [] => bail!("automatic selection found no safe wheel device"),
+        _ => bail!(
+            "automatic selection requires exactly one safe wheel device; found {}: {}",
+            candidates.len(),
+            candidates
+                .iter()
+                .map(|c| format!("{} ({})", c.path.display(), c.name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    }
+}
+
+pub fn auto_device(config: &Config) -> Result<PathBuf> {
+    // keyd uses Type=simple: ordering after its process starts does not mean
+    // its input devices are ready. Allow enumeration and grabs to settle.
+    let started = Instant::now();
+    let mut previous = None;
+    let mut stable_since = Instant::now();
+    loop {
+        let discovery = scan(config)?;
+        let selection = select_candidate(&discovery).cloned();
+        let current = selection.as_ref().ok().cloned();
+        if current != previous {
+            stable_since = Instant::now();
+            previous = current;
+        }
+        if started.elapsed() >= Duration::from_secs(2)
+            && stable_since.elapsed() >= Duration::from_secs(1)
+        {
+            if let Ok(candidate) = &selection {
+                tracing::info!(device = %candidate.path.display(), name = %candidate.name,
+                    "automatically selected a stable wheel source");
+                return Ok(candidate.path.clone());
+            }
+        }
+        if started.elapsed() >= Duration::from_secs(10) {
+            selection?;
+            bail!("automatic wheel source did not stabilize within 10 seconds");
+        }
+        thread::sleep(Duration::from_millis(250));
+    }
 }
 
 pub fn run(config: Config, path: &Path, grab: bool) -> Result<()> {
@@ -394,7 +488,132 @@ fn ev(kind: EventType, code: u16, value: i32) -> InputEvent {
 
 #[cfg(test)]
 mod tests {
-    use super::{gesture_prime, gesture_should_end, restart_position};
+    use super::{
+        Candidate, Discovery, gesture_prime, gesture_should_end, restart_position,
+        select_candidate, usb_source,
+    };
+
+    fn mouse(event: u8, name: &str, vendor: u16, product: u16, phys: &str) -> Candidate {
+        Candidate {
+            path: format!("/dev/input/event{event}").into(),
+            name: name.into(),
+            vendor,
+            product,
+            usb_source: usb_source(phys),
+        }
+    }
+
+    fn keyd() -> Candidate {
+        mouse(19, "keyd virtual pointer", 0x0fac, 0x1ade, "")
+    }
+
+    #[test]
+    fn keyd_receiver_sibling_does_not_steal_auto_selection() {
+        let discovery = Discovery {
+            available: vec![
+                mouse(
+                    4,
+                    "Logitech Wireless Mouse PID:b036",
+                    0x046d,
+                    0xb036,
+                    "usb-0000:00:14.0-2/input2:1",
+                ),
+                keyd(),
+            ],
+            busy_usb_sources: vec!["usb-0000:00:14.0-2".into()],
+        };
+        assert_eq!(select_candidate(&discovery).unwrap().path, keyd().path);
+    }
+
+    #[test]
+    fn busy_receiver_waits_for_delayed_keyd_pointer() {
+        let mut discovery = Discovery {
+            available: vec![mouse(
+                4,
+                "Logitech Wireless Mouse PID:b036",
+                0x046d,
+                0xb036,
+                "usb-0000:00:14.0-2/input2:1",
+            )],
+            busy_usb_sources: vec!["usb-0000:00:14.0-2".into()],
+        };
+        assert!(select_candidate(&discovery).is_err());
+        discovery.available.push(keyd());
+        assert_eq!(select_candidate(&discovery).unwrap().path, keyd().path);
+    }
+
+    #[test]
+    fn separate_mouse_remains_ambiguous() {
+        let discovery = Discovery {
+            available: vec![
+                mouse(
+                    4,
+                    "Other Mouse",
+                    0x046d,
+                    0xb036,
+                    "usb-0000:00:14.0-3/input0",
+                ),
+                keyd(),
+            ],
+            busy_usb_sources: vec!["usb-0000:00:14.0-2".into()],
+        };
+        assert!(select_candidate(&discovery).is_err());
+    }
+
+    #[test]
+    fn keyboard_only_keyd_does_not_override_physical_mouse() {
+        let discovery = Discovery {
+            available: vec![
+                mouse(4, "Mouse", 0x046d, 0xb036, "usb-0000:00:14.0-2/input0"),
+                keyd(),
+            ],
+            ..Discovery::default()
+        };
+        assert!(select_candidate(&discovery).is_err());
+    }
+
+    #[test]
+    fn same_name_with_wrong_identity_does_not_hide_mouse() {
+        let mut impostor = keyd();
+        impostor.vendor = 0x1234;
+        let discovery = Discovery {
+            available: vec![
+                mouse(4, "Mouse", 0x046d, 0xb036, "usb-0000:00:14.0-2/input0"),
+                impostor,
+            ],
+            busy_usb_sources: vec!["usb-0000:00:14.0-2".into()],
+        };
+        assert!(select_candidate(&discovery).is_err());
+    }
+
+    #[test]
+    fn original_single_mouse_and_keyd_paths_still_work() {
+        for candidate in [
+            keyd(),
+            mouse(4, "Mouse", 0x046d, 0xc548, "usb-0000:00:14.0-2/input0"),
+        ] {
+            let discovery = Discovery {
+                available: vec![candidate.clone()],
+                ..Discovery::default()
+            };
+            assert_eq!(select_candidate(&discovery).unwrap(), &candidate);
+        }
+        assert!(select_candidate(&Discovery::default()).is_err());
+    }
+
+    #[test]
+    fn usb_interfaces_group_by_receiver_without_merging_ports() {
+        assert_eq!(
+            usb_source("usb-0000:00:14.0-2/input1"),
+            usb_source("usb-0000:00:14.0-2/input2:1")
+        );
+        assert_ne!(
+            usb_source("usb-0000:00:14.0-2/input1"),
+            usb_source("usb-0000:00:14.0-3/input1")
+        );
+        assert_eq!(usb_source(""), None);
+        assert_eq!(usb_source("bluetooth/input0"), None);
+    }
     use std::time::Duration;
 
     #[test]

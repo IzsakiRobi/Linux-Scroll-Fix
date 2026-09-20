@@ -75,30 +75,7 @@ fn run(
         return Ok(());
     }
     let path = if auto_device {
-        let candidates = linux::discover(&config)?;
-        match candidates.as_slice() {
-            [candidate] => {
-                tracing::info!(
-                    device = %candidate.path.display(),
-                    name = %candidate.name,
-                    "automatically selected the only safe wheel device"
-                );
-                candidate.path.clone()
-            }
-            [] => anyhow::bail!("automatic selection found no safe wheel device"),
-            _ => {
-                let choices = candidates
-                    .iter()
-                    .map(|candidate| format!("{} ({})", candidate.path.display(), candidate.name))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                anyhow::bail!(
-                    "automatic selection requires exactly one safe wheel device; found {}: {}",
-                    candidates.len(),
-                    choices
-                )
-            }
-        }
+        linux::auto_device(&config)?
     } else {
         device.ok_or_else(|| {
             anyhow::anyhow!(
