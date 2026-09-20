@@ -1,4 +1,4 @@
-name: x86_64 Fedora RPM
+name: Fedora RPMs
 
 on:
   release:
@@ -14,7 +14,15 @@ permissions:
 
 jobs:
   rpm:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     container: fedora:44
 
     steps:
@@ -37,6 +45,9 @@ jobs:
           tar
           vala
 
+      - name: Test Rust workspace
+        run: cargo test --workspace --locked
+
       - name: Build RPM
         shell: bash
         run: |
@@ -56,17 +67,19 @@ jobs:
             --define "_topdir ${topdir}" \
             --define "dist %{nil}" \
             -bb "${topdir}/SPECS/linux-scroll-fix.spec"
-          rpm_path=$(find "${topdir}/RPMS/x86_64" -maxdepth 1 -name 'linux-scroll-fix-*.x86_64.rpm' ! -name '*debug*' -print -quit)
-          cp "${rpm_path}" "linux-scroll-fix-${version}-1.x86_64.rpm"
-          rpm --checksig --nosignature "linux-scroll-fix-${version}-1.x86_64.rpm"
+          rpm_path=$(find "${topdir}/RPMS/${{ matrix.arch }}" -maxdepth 1 -name 'linux-scroll-fix-*.${{ matrix.arch }}.rpm' ! -name '*debug*' -print -quit)
+          cp "${rpm_path}" "linux-scroll-fix-${version}-1.${{ matrix.arch }}.rpm"
+          rpm --checksig --nosignature "linux-scroll-fix-${version}-1.${{ matrix.arch }}.rpm"
 
       - name: Preserve build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-scroll-fix-x86_64-rpm
-          path: linux-scroll-fix-*-1.x86_64.rpm
+          name: linux-scroll-fix-${{ matrix.arch }}-rpm
+          path: linux-scroll-fix-*-1.${{ matrix.arch }}.rpm
+          if-no-files-found: error
 
       - name: Attach RPM to matching release
+        if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -74,6 +87,6 @@ jobs:
           set -euo pipefail
           version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
           gh release upload "v${version}" \
-            "linux-scroll-fix-${version}-1.x86_64.rpm" \
+            "linux-scroll-fix-${version}-1.${{ matrix.arch }}.rpm" \
             --repo "${GITHUB_REPOSITORY}" \
             --clobber
