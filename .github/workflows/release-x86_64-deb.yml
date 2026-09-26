@@ -1,0 +1,159 @@
+name: Ubuntu DEB
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/release-x86_64-deb.yml
+
+permissions:
+  contents: write
+
+jobs:
+  deb:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cargo-1.85 \
+            dpkg-dev \
+            libadwaita-1-dev \
+            libgtk-4-dev \
+            meson \
+            ninja-build \
+            pkg-config \
+            rustc-1.85 \
+            valac
+
+      - name: Test Rust workspace
+        env:
+          CARGO: /usr/bin/cargo-1.85
+          RUSTC: /usr/bin/rustc-1.85
+        run: |
+          "$CARGO" test --workspace --locked
+
+      - name: Build DEB
+        env:
+          CARGO: /usr/bin/cargo-1.85
+          RUSTC: /usr/bin/rustc-1.85
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          package_root=${RUNNER_TEMP}/linux-scroll-fix-deb
+          rm -rf "${package_root}"
+          mkdir -p \
+            "${package_root}/DEBIAN" \
+            "${package_root}/etc/linux-scroll-fix" \
+            "${package_root}/usr/local/bin" \
+            "${package_root}/usr/local/libexec" \
+            "${package_root}/usr/local/share/applications" \
+            "${package_root}/usr/local/share/icons/hicolor/scalable/apps" \
+            "${package_root}/usr/local/share/linux-scroll-fix/profiles" \
+            "${package_root}/usr/local/share/metainfo" \
+            "${package_root}/usr/share/polkit-1/actions"
+
+          env RUSTC="$RUSTC" "$CARGO" build --release --locked
+          meson setup build/gui . --prefix=/usr/local --buildtype=release
+          meson compile -C build/gui
+
+          install -Dm0755 target/release/linux-scroll-fixd \
+            "${package_root}/usr/local/bin/linux-scroll-fixd"
+          install -Dm0755 target/release/linux-scroll-fixctl \
+            "${package_root}/usr/local/libexec/linux-scroll-fixctl"
+          install -Dm0755 build/gui/linux-scroll-fix \
+            "${package_root}/usr/local/bin/linux-scroll-fix"
+          install -Dm0644 config/default.toml \
+            "${package_root}/etc/linux-scroll-fix/config.toml"
+          install -Dm0644 config/default.toml \
+            "${package_root}/usr/local/share/linux-scroll-fix/profiles/precise.toml"
+          install -Dm0644 config/balanced.toml \
+            "${package_root}/usr/local/share/linux-scroll-fix/profiles/balanced.toml"
+          install -Dm0644 config/rapid.toml \
+            "${package_root}/usr/local/share/linux-scroll-fix/profiles/rapid.toml"
+          install -Dm0644 systemd/linux-scroll-fix.service \
+            "${package_root}/etc/systemd/system/linux-scroll-fix.service"
+          install -Dm0644 polkit/io.github.izsakirobi.linux-scroll-fix.policy \
+            "${package_root}/usr/share/polkit-1/actions/io.github.izsakirobi.linux-scroll-fix.policy"
+          install -Dm0644 gui/data/io.github.izsakirobi.LinuxScrollFix.desktop \
+            "${package_root}/usr/local/share/applications/io.github.izsakirobi.LinuxScrollFix.desktop"
+          install -Dm0644 gui/data/io.github.izsakirobi.LinuxScrollFix.metainfo.xml \
+            "${package_root}/usr/local/share/metainfo/io.github.izsakirobi.LinuxScrollFix.metainfo.xml"
+          install -Dm0644 gui/data/icons/hicolor/scalable/apps/io.github.izsakirobi.LinuxScrollFix.svg \
+            "${package_root}/usr/local/share/icons/hicolor/scalable/apps/io.github.izsakirobi.LinuxScrollFix.svg"
+          install -Dm0644 README.md "${package_root}/usr/share/doc/linux-scroll-fix/README.md"
+          install -Dm0644 LICENSE "${package_root}/usr/share/doc/linux-scroll-fix/LICENSE"
+          install -Dm0644 THIRD_PARTY_NOTICES.md \
+            "${package_root}/usr/share/doc/linux-scroll-fix/THIRD_PARTY_NOTICES.md"
+
+          cat > "${package_root}/DEBIAN/control" <<EOF
+          Package: linux-scroll-fix
+          Version: ${version}-1
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: IzsakiRobi <izsakirob@gmail.com>
+          Depends: libc6, libgtk-4-1 (>= 4.10), libadwaita-1-0 (>= 1.4), polkitd | policykit-1, systemd
+          Description: Precise, smooth mouse-wheel scrolling for Linux
+           Linux Scroll Fix converts traditional mouse-wheel ticks into precise,
+           smooth scrolling and provides a native GNOME control panel.
+          EOF
+
+          cat > "${package_root}/DEBIAN/conffiles" <<EOF
+          /etc/linux-scroll-fix/config.toml
+          EOF
+
+          cat > "${package_root}/DEBIAN/postinst" <<'EOF'
+          #!/bin/sh
+          set -e
+          if [ "$1" = configure ]; then
+              systemctl daemon-reload || true
+              systemctl enable linux-scroll-fix.service >/dev/null 2>&1 || true
+              systemctl restart linux-scroll-fix.service >/dev/null 2>&1 || true
+          fi
+          exit 0
+          EOF
+          chmod 0755 "${package_root}/DEBIAN/postinst"
+
+          cat > "${package_root}/DEBIAN/prerm" <<'EOF'
+          #!/bin/sh
+          set -e
+          if [ "$1" = remove ] || [ "$1" = upgrade ]; then
+              systemctl disable --now linux-scroll-fix.service >/dev/null 2>&1 || true
+          fi
+          exit 0
+          EOF
+          chmod 0755 "${package_root}/DEBIAN/prerm"
+
+          deb="linux-scroll-fix-${version}-1.amd64.deb"
+          dpkg-deb --build --root-owner-group "${package_root}" "${deb}"
+          dpkg-deb --info "${deb}"
+          dpkg-deb --contents "${deb}" >/dev/null
+
+      - name: Preserve build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-scroll-fix-x86_64-deb
+          path: linux-scroll-fix-*-1.amd64.deb
+          if-no-files-found: error
+
+      - name: Attach DEB to matching release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          gh release upload "v${version}" \
+            "linux-scroll-fix-${version}-1.amd64.deb" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
