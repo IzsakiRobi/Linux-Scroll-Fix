@@ -2,7 +2,7 @@
 
 Smooth mouse-wheel scrolling for Linux, with a native GNOME control panel for profiles, speed, and scroll direction.
 
-Fedora RPMs for **x86_64** and **aarch64** are available in [Releases](https://github.com/IzsakiRobi/Linux-Scroll-Fix/releases/latest).
+Fedora RPMs for **x86_64** and **aarch64**, plus an amd64 DEB for Ubuntu-based distributions, are available in [Releases](https://github.com/IzsakiRobi/Linux-Scroll-Fix/releases/latest).
 
 ## Manual install / uninstall
 
