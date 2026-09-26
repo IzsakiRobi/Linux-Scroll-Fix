@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://raw.githubusercontent.com/IzsakiRobi/Linux-Scroll-Fix/main/Screenshots/Main-Window.jpg">
+    <img src="Screenshots/Main-Window.jpg" width="600" alt="Linux Scroll Fix main window" />
+  </a>
+</p>
+
 # Linux Scroll Fix
 
 Smooth mouse-wheel scrolling for Linux, with a native GNOME control panel for profiles, speed, and scroll direction.
