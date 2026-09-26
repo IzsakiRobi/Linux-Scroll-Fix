@@ -30,7 +30,7 @@ case " ${ID:-} ${ID_LIKE:-} " in
             rust_packages=(cargo-1.85 rustc-1.85)
             # Use the real Cargo binary: older versioned wrappers can launch
             # the unversioned Cargo instead (Ubuntu bug 2100266).
-            cargo_bin=/usr/lib/rust-1.85/share/cargo/bin/cargo
+            cargo_bin=/usr/bin/cargo-1.85
             rustc_bin=/usr/bin/rustc-1.85
         fi
         apt-get install -y \
