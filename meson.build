@@ -1,7 +1,7 @@
 project(
   'linux-scroll-fix-gui',
   ['vala', 'c'],
-  version: '0.5.2',
+  version: '0.5.3',
   meson_version: '>= 0.61',
 )
 

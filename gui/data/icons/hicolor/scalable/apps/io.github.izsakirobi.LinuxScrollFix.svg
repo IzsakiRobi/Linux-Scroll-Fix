@@ -191,142 +191,60 @@
        gradientUnits="userSpaceOnUse" />
   </defs>
   <!-- Soft GNOME-style application tile. -->
-  <!-- Motion trails: rounded, staggered and fading away from the mouse. -->
-  <!-- Rear tires sit behind the mouse body. -->
-  <!-- Mouse body with a rounded, tapered rear instead of a straight cut. -->
+    <!-- Narrow side wheels sit behind the mouse body. -->
+  <!-- Mouse body with a broad, realistic rounded rear. -->
   <!-- Button split and scroll wheel. -->
   <!-- Small highlights retain definition at launcher sizes. -->
   <g
      id="g33"
-     transform="matrix(1.2112618,0,0,1.334767,-61.556054,-102.21102)"
+     transform="matrix(1.2112618,0,0,1.334767,-61.556054,-80.00000)"
      style="opacity:1">
-    <path
-       d="m 300,411 c 0,35 0,65 0,99"
-       fill="none"
-       stroke="url(#trail)"
-       stroke-width="18"
-       stroke-linecap="round"
-       id="path11"
-       style="stroke:url(#linearGradient33)" />
-    <path
-       d="m 250,425 c -4,24 -7,45 -10,68"
-       fill="none"
-       stroke="url(#trail)"
-       stroke-width="14"
-       stroke-linecap="round"
-       id="path12"
-       style="stroke:url(#linearGradient34)" />
-    <path
-       d="m 350,425 c 4,24 7,45 10,68"
-       fill="none"
-       stroke="url(#trail)"
-       stroke-width="14"
-       stroke-linecap="round"
-       id="path13"
-       style="stroke:url(#linearGradient35)" />
-    <path
-       d="m 202,433 c -5,14 -9,28 -12,43"
-       fill="none"
-       stroke="url(#trail)"
-       stroke-width="10"
-       stroke-linecap="round"
-       id="path14"
-       style="stroke:url(#linearGradient36)" />
-    <path
-       d="m 398,433 c 5,14 9,28 12,43"
-       fill="none"
-       stroke="url(#trail)"
-       stroke-width="10"
-       stroke-linecap="round"
-       id="path15"
-       style="stroke:url(#linearGradient37)" />
     <rect
-       x="112"
-       y="309"
-       width="102"
-       height="152"
-       rx="43"
+       x="143"
+       y="319"
+       width="42"
+       height="126"
+       rx="21"
        fill="#303038"
-       id="rect15" />
-    <rect
-       x="386"
-       y="309"
-       width="102"
-       height="152"
-       rx="43"
-       fill="#303038"
-       id="rect16" />
-    <g
-       fill="#696971"
-       clip-path="url(#leftTire)"
-       id="g22">
-      <path
-         d="m 91,329 31,-25 h 28 l -38,32 z"
-         id="path16" />
-      <path
-         d="m 91,370 39,-32 h 28 l -46,39 z"
-         id="path17" />
-      <path
-         d="m 91,416 39,-32 h 28 l -46,39 z"
-         id="path18" />
-      <path
-         d="m 96,457 36,-30 h 28 l -41,35 z"
-         id="path19" />
-      <path
-         d="m 169,304 45,37 v 24 l -45,-36 z"
-         id="path20" />
-      <path
-         d="m 169,351 45,37 v 24 l -45,-36 z"
-         id="path21" />
-      <path
-         d="m 169,398 45,37 v 24 l -45,-36 z"
-         id="path22" />
-    </g>
-    <g
-       fill="#696971"
-       clip-path="url(#rightTire)"
-       id="g28">
-      <path
-         d="m 365,341 45,-37 h 28 l -52,43 z"
-         id="path23" />
-      <path
-         d="m 365,388 45,-37 h 28 l -52,43 z"
-         id="path24" />
-      <path
-         d="m 365,435 45,-37 h 28 l -52,43 z"
-         id="path25" />
-      <path
-         d="m 442,304 46,38 v 24 l -46,-37 z"
-         id="path26" />
-      <path
-         d="m 442,351 46,38 v 24 l -46,-37 z"
-         id="path27" />
-      <path
-         d="m 442,398 46,38 v 24 l -46,-37 z"
-         id="path28" />
-    </g>
-    <rect
-       x="128"
-       y="325"
-       width="70"
-       height="120"
-       rx="31"
-       fill="none"
        stroke="#1f1f25"
-       stroke-width="7"
-       id="rect28" />
-    <rect
-       x="402"
-       y="325"
-       width="70"
-       height="120"
-       rx="31"
-       fill="none"
-       stroke="#1f1f25"
-       stroke-width="7"
-       id="rect29" />
+       stroke-width="5"
+       id="leftWheel" />
     <path
-       d="m 300,88 c 82,0 138,60 138,142 v 108 c 0,37 -18,61 -51,76 -27,12 -55,24 -87,35 -32,-11 -60,-23 -87,-35 -33,-15 -51,-39 -51,-76 V 230 C 162,148 218,88 300,88 Z"
+       d="m 153,337 v 90"
+       fill="none"
+       stroke="#696971"
+       stroke-width="5"
+       stroke-linecap="round"
+       opacity="0.72"
+       id="leftWheelDetail" />
+    <rect
+       x="415"
+       y="319"
+       width="42"
+       height="126"
+       rx="21"
+       fill="#303038"
+       stroke="#1f1f25"
+       stroke-width="5"
+       id="rightWheel" />
+    <path
+       d="m 447,337 v 90"
+       fill="none"
+       stroke="#696971"
+       stroke-width="5"
+       stroke-linecap="round"
+       opacity="0.72"
+       id="rightWheelDetail" />
+    <path
+       d="m 300,88
+          c 82,0 138,60 138,142
+          v 112
+          c 0,61 -39,109 -101,121
+          c -12,2 -24,3 -37,3
+          c -13,0 -25,-1 -37,-3
+          c -62,-12 -101,-60 -101,-121
+          V 230
+          C 162,148 218,88 300,88 Z"
        fill="url(#mouse)"
        stroke="#b8b8be"
        stroke-width="4"
@@ -370,7 +288,7 @@
        stroke-linecap="round"
        id="path32" />
     <path
-       d="m 222,400 c 24,11 50,22 78,32 28,-10 54,-21 78,-32"
+       d="m 220,411 c 24,22 51,34 80,34 29,0 56,-12 80,-34"
        fill="none"
        stroke="#ffffff"
        stroke-opacity="0.5"

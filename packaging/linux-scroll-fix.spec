@@ -1,5 +1,5 @@
 Name:           linux-scroll-fix
-Version:        0.5.2
+Version:        0.5.3
 Release:        1%{?dist}
 Summary:        Precise, smooth mouse-wheel scrolling for Linux
 
@@ -69,6 +69,9 @@ systemctl enable --now linux-scroll-fix.service >/dev/null 2>&1 || :
 %{_datadir}/polkit-1/actions/io.github.izsakirobi.linux-scroll-fix.policy
 
 %changelog
+* Sat Sep 26 2026 IzsakiRobi <izsakirobi@users.noreply.github.com> - 0.5.3-1
+- Refresh the application icon with a rounded mouse body
+
 * Sun Sep 20 2026 IzsakiRobi <izsakirobi@users.noreply.github.com> - 0.5.2-1
 - Handle duplicate receiver interfaces and generic virtual remapper pointers
 - Wait for stable input selection during startup

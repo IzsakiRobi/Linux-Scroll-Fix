@@ -9,7 +9,7 @@ The included **Precise** profile retains the Mac Mouse Fix High smoothness + Med
 Download the RPM from the latest GitHub release and install it with:
 
 ```bash
-sudo dnf install ./linux-scroll-fix-0.5.2-1.*.rpm
+sudo dnf install ./linux-scroll-fix-0.5.3-1.*.rpm
 ```
 
 Alternatively, build and install directly from the repository:
