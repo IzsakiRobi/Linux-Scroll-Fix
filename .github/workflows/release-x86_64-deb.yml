@@ -38,7 +38,7 @@ jobs:
           CARGO: /usr/bin/cargo-1.85
           RUSTC: /usr/bin/rustc-1.85
         run: |
-          "$CARGO" test --workspace --locked
+          "$CARGO" test --workspace --lib --bins --locked
 
       - name: Build DEB
         env:
