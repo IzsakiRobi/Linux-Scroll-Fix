@@ -4,9 +4,9 @@ Smooth mouse-wheel scrolling for Linux, with a native GNOME control panel for pr
 
 Fedora RPMs for **x86_64** and **aarch64** are available in [Releases](https://github.com/IzsakiRobi/Linux-Scroll-Fix/releases/latest).
 
-## Manual install / uninstall (Fedora)
+## Manual install / uninstall
 
-From the repository directory:
+On Fedora, Ubuntu 24.04+ or elementary OS 8+, run from the repository directory:
 
 ```bash
 sudo ./scripts/install.sh

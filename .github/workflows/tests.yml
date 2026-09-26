@@ -28,3 +28,27 @@ jobs:
       - run: meson compile -C build/gui
       - run: desktop-file-validate gui/data/io.github.izsakirobi.LinuxScrollFix.desktop
       - run: appstreamcli validate --no-net gui/data/io.github.izsakirobi.LinuxScrollFix.metainfo.xml
+  installer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install from source with APT
+        run: |
+          mkdir -p "${RUNNER_TEMP}/installer-bin"
+          # Exercise installation without starting a mouse-capture service on CI.
+          printf '#!/bin/sh\nexit 0\n' > "${RUNNER_TEMP}/installer-bin/systemctl"
+          chmod +x "${RUNNER_TEMP}/installer-bin/systemctl"
+          sudo env PATH="${RUNNER_TEMP}/installer-bin:/usr/sbin:/usr/bin:/sbin:/bin" ./scripts/install.sh
+      - name: Verify installed files and configuration
+        run: |
+          /usr/local/bin/linux-scroll-fixd --version
+          sudo /usr/local/bin/linux-scroll-fixd --check-config
+          test -x /usr/local/bin/linux-scroll-fix
+          test -x /usr/local/libexec/linux-scroll-fixctl
+          test -f /usr/share/polkit-1/actions/io.github.izsakirobi.linux-scroll-fix.policy
+      - name: Uninstall and preserve configuration
+        run: |
+          sudo env PATH="${RUNNER_TEMP}/installer-bin:/usr/sbin:/usr/bin:/sbin:/bin" ./scripts/uninstall.sh
+          test ! -e /usr/local/bin/linux-scroll-fixd
+          test ! -e /usr/local/bin/linux-scroll-fix
+          test -f /etc/linux-scroll-fix/config.toml
