@@ -6,7 +6,7 @@ Fedora RPMs for **x86_64** and **aarch64**, plus an amd64 DEB for Ubuntu-based d
 
 ## Manual install / uninstall
 
-On Fedora, Ubuntu 24.04+ or elementary OS 8+, run from the repository directory:
+On Fedora or an Ubuntu-based distribution (Ubuntu 24.04+ or an equivalent base), run from the repository directory:
 
 ```bash
 sudo ./scripts/install.sh
